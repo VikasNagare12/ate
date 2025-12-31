@@ -1,0 +1,27 @@
+{
+  "ruleId": "SCHEDULED_JOB_RESILIENCY",
+  "severity": "ERROR",
+  "description": "Scheduled jobs must use retry/resilience logic",
+  "query": {
+    "type": "graph_traversal",
+    "graph": "call_graph",
+    "pattern": {
+      "start": {
+        "annotation": "Scheduled",
+        "element": "method"
+      },
+      "traverse": {
+        "edge": "calls",
+        "maxDepth": 5
+      },
+      "target": {
+        "mustNotReach": ["Retryable", "CircuitBreaker", "Resilience4j"]
+      }
+    }
+  },
+  "violation": {
+    "message": "Scheduled method {method} does not use retry/resilience logic",
+    "location": "method"
+  }
+}
+

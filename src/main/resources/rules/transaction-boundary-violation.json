@@ -1,0 +1,27 @@
+{
+  "ruleId": "TRANSACTION_BOUNDARY_VIOLATION",
+  "severity": "BLOCKER",
+  "description": "Remote calls inside @Transactional methods",
+  "query": {
+    "type": "graph_traversal",
+    "graph": "call_graph",
+    "pattern": {
+      "start": {
+        "annotation": "Transactional",
+        "element": "method"
+      },
+      "traverse": {
+        "edge": "calls",
+        "maxDepth": 10
+      },
+      "target": {
+        "annotation": ["FeignClient", "RestTemplate", "WebClient"]
+      }
+    }
+  },
+  "violation": {
+    "message": "Method {method} makes remote call inside transaction",
+    "location": "callSite"
+  }
+}
+

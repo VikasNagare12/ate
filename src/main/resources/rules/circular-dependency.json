@@ -1,0 +1,17 @@
+{
+  "ruleId": "CIRCULAR_DEPENDENCY",
+  "severity": "ERROR",
+  "description": "Detect circular dependencies between packages",
+  "query": {
+    "type": "graph_traversal",
+    "graph": "dependency_graph",
+    "pattern": {
+      "detectCycles": true
+    }
+  },
+  "violation": {
+    "message": "Circular dependency detected: {cycle}",
+    "location": "package"
+  }
+}
+
