@@ -15,7 +15,17 @@
         "maxDepth": 5
       },
       "target": {
-        "mustNotReach": ["Retryable", "CircuitBreaker", "Resilience4j"]
+        "mustReach": [
+          {
+            "annotation": "Retryable"
+          },
+          {
+            "annotation": "CircuitBreaker"
+          },
+          {
+            "annotation": "Resilience4j"
+          }
+        ]
       }
     }
   },
@@ -24,4 +34,3 @@
     "location": "method"
   }
 }
-

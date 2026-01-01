@@ -1,5 +1,7 @@
 package com.vidnyan.ate;
 
+import com.vidnyan.ate.advisor.Advice;
+import com.vidnyan.ate.advisor.Advisor;
 import com.vidnyan.ate.graph.CallGraph;
 import com.vidnyan.ate.graph.DependencyGraph;
 import com.vidnyan.ate.model.SourceModel;
@@ -42,6 +44,7 @@ public class AnalysisEngine implements CommandLineRunner {
     private final SourceModelBuilder sourceModelBuilder;
     private final RuleEngine ruleEngine;
     private final AnalysisProperties analysisProperties;
+    private final Advisor advisor;
     
     /**
      * Execute the complete analysis pipeline.
@@ -145,6 +148,17 @@ public class AnalysisEngine implements CommandLineRunner {
                         violation.getLocation().toDisplayString(),
                         violation.getMessage());
             }
+        }
+        
+        // AI Advisor Analysis
+        log.info("\n=== AI Advisor ===");
+        Advice advice = advisor.analyze(report);
+        log.info("Summary: {}", advice.getSummary());
+        for (Advice.Suggestion suggestion : advice.getSuggestions()) {
+            log.info("[{}] {}: {}", 
+                    suggestion.getImpact(), 
+                    suggestion.getTitle(), 
+                    suggestion.getDescription());
         }
         
         // Exit with appropriate code
