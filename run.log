@@ -1,0 +1,92 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------------< com.vidnyan:ate >---------------------------
+[INFO] Building ate 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.1:run (default-cli) > test-compile @ ate >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ ate ---
+[INFO] Copying 1 resource from src/main/resources to target/classes
+[INFO] Copying 3 resources from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ ate ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 25 source files with javac [debug parameters release 21] to target/classes
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by lombok.permit.Permit
+WARNING: Please consider reporting this to the maintainers of class lombok.permit.Permit
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ ate ---
+[INFO] skip non existing resourceDirectory /Users/vikas/Desktop/java/ate/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ ate ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 1 source file with javac [debug parameters release 21] to target/test-classes
+[INFO] 
+[INFO] <<< spring-boot:4.0.1:run (default-cli) < test-compile @ ate <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.1:run (default-cli) @ ate ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.1)
+
+2026-01-01T21:13:33.033+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AteApplication           : Starting AteApplication using Java 25.0.1 with PID 27703 (/Users/vikas/Desktop/java/ate/target/classes started by vikas in /Users/vikas/Desktop/java/ate)
+2026-01-01T21:13:33.038+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AteApplication           : No active profile set, falling back to 1 default profile: "default"
+2026-01-01T21:13:34.569+05:30  INFO 27703 --- [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-01-01T21:13:34.604+05:30  INFO 27703 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-01-01T21:13:34.604+05:30  INFO 27703 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-01-01T21:13:34.705+05:30  INFO 27703 --- [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1557 ms
+2026-01-01T21:13:35.780+05:30  INFO 27703 --- [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-01-01T21:13:35.787+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AteApplication           : Started AteApplication in 3.454 seconds (process running for 4.288)
+2026-01-01T21:13:35.791+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Starting analysis of repository: /Users/vikas/Desktop/java/ate/.
+2026-01-01T21:13:35.791+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Step 1: Scanning repository...
+2026-01-01T21:13:35.796+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Found 25 source files
+2026-01-01T21:13:35.797+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Step 2: Parsing files to AST...
+2026-01-01T21:13:36.239+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Successfully parsed 25/25 files
+2026-01-01T21:13:36.239+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Step 3: Building Source Model...
+2026-01-01T21:13:36.239+05:30  INFO 27703 --- [           main] c.v.a.model.builder.SourceModelBuilder   : Building Source Model from 25 files
+2026-01-01T21:13:36.263+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Source Model built: 31 types, 65 methods, 123 fields
+2026-01-01T21:13:36.263+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Step 4: Building graphs...
+2026-01-01T21:13:36.265+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Call graph: 0 method relationships, Dependency graph: 1 package relationships
+2026-01-01T21:13:36.266+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Step 5: Initializing rule engine...
+2026-01-01T21:13:36.266+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Step 6: Loading rules...
+2026-01-01T21:13:36.409+05:30  INFO 27703 --- [           main] com.vidnyan.ate.rule.RuleEngine          : Loaded rule: SCHEDULED_JOB_RESILIENCY
+2026-01-01T21:13:36.411+05:30  INFO 27703 --- [           main] com.vidnyan.ate.rule.RuleEngine          : Loaded rule: TRANSACTION_BOUNDARY_VIOLATION
+2026-01-01T21:13:36.413+05:30  INFO 27703 --- [           main] com.vidnyan.ate.rule.RuleEngine          : Loaded rule: CIRCULAR_DEPENDENCY
+2026-01-01T21:13:36.413+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Loaded 3 rules
+2026-01-01T21:13:36.415+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Step 7: Evaluating rules...
+2026-01-01T21:13:36.415+05:30  INFO 27703 --- [           main] com.vidnyan.ate.rule.RuleEngine          : Evaluating rule: SCHEDULED_JOB_RESILIENCY
+2026-01-01T21:13:36.416+05:30  INFO 27703 --- [           main] com.vidnyan.ate.rule.RuleEngine          : Found 0 violations for rule SCHEDULED_JOB_RESILIENCY
+2026-01-01T21:13:36.416+05:30  INFO 27703 --- [           main] com.vidnyan.ate.rule.RuleEngine          : Evaluating rule: TRANSACTION_BOUNDARY_VIOLATION
+2026-01-01T21:13:36.416+05:30  INFO 27703 --- [           main] com.vidnyan.ate.rule.RuleEngine          : Found 0 violations for rule TRANSACTION_BOUNDARY_VIOLATION
+2026-01-01T21:13:36.416+05:30  INFO 27703 --- [           main] com.vidnyan.ate.rule.RuleEngine          : Evaluating rule: CIRCULAR_DEPENDENCY
+2026-01-01T21:13:36.416+05:30  INFO 27703 --- [           main] com.vidnyan.ate.rule.RuleEngine          : Found 0 violations for rule CIRCULAR_DEPENDENCY
+2026-01-01T21:13:36.416+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Found 0 violations
+2026-01-01T21:13:36.416+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Step 8: Generating report...
+2026-01-01T21:13:36.420+05:30  INFO 27703 --- [           main] com.vidnyan.ate.AnalysisEngine           : Report generated: 0 violations (0 BLOCKER, 0 ERROR, 0 WARN)
+
+=== Analysis Report ===
+Total Violations: 0
+BLOCKER: 0
+ERROR: 0
+WARN: 0
+Result: PASS
+2026-01-01T21:13:36.427+05:30  INFO 27703 --- [ionShutdownHook] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-01-01T21:13:36.442+05:30  INFO 27703 --- [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  17.243 s
+[INFO] Finished at: 2026-01-01T21:13:36+05:30
+[INFO] ------------------------------------------------------------------------

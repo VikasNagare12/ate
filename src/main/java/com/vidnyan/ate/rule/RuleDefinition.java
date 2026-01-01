@@ -3,6 +3,7 @@ package com.vidnyan.ate.rule;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Value;
+import lombok.extern.jackson.Jacksonized;
 
 import java.util.Map;
 
@@ -12,6 +13,7 @@ import java.util.Map;
  */
 @Value
 @Builder
+@Jacksonized
 public class RuleDefinition {
     @JsonProperty("ruleId")
     String ruleId;
@@ -30,6 +32,7 @@ public class RuleDefinition {
     
     @Value
     @Builder
+    @Jacksonized
     public static class QueryDefinition {
         @JsonProperty("type")
         String type; // "graph_traversal", "model_query", "pattern_match"
@@ -43,6 +46,7 @@ public class RuleDefinition {
     
     @Value
     @Builder
+    @Jacksonized
     public static class ViolationDefinition {
         @JsonProperty("message")
         String message; // Template with {placeholders}

@@ -33,6 +33,7 @@ public class AstParser {
         // Configure parser with symbol resolver
         ParserConfiguration config = new ParserConfiguration();
         config.setSymbolResolver(new JavaSymbolSolver(typeSolver));
+        config.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21);
         
         this.javaParser = new JavaParser(config);
     }
