@@ -70,11 +70,10 @@ public class AnalysisEngine implements CommandLineRunner {
                 .toList();
         
         log.info("Starting analysis of repository: {}", repositoryRoot);
-        
+
         // Step 1: Scan repository
         log.info("Step 1: Scanning repository...");
-        repositoryScanner.initialize(repositoryRoot);
-        List<Path> sourceFiles = repositoryScanner.scanSourceFiles();
+        List<Path> sourceFiles = repositoryScanner.scanSourceFiles(repositoryRoot);
         log.info("Found {} source files", sourceFiles.size());
         
         // Step 2: Parse files to AST

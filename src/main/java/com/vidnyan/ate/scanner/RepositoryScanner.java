@@ -1,13 +1,11 @@
 package com.vidnyan.ate.scanner;
 
-import lombok.Getter;
-import lombok.Setter;
+
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -17,45 +15,21 @@ import java.util.stream.Stream;
  * Discovers all .java files in the source roots.
  */
 @Component
-@Getter
-@Setter
 public class RepositoryScanner {
     
-    private Path repositoryRoot;
-    private final List<String> sourceRoots = new ArrayList<>();
-    
     /**
-     * Initialize scanner with repository root.
+     * Scan and return all Java source files in the given repository root.
+     * 
+     * @param repositoryRoot The root directory of the repository to scan
+     * @return List of paths to Java source files
+     * @throws IOException If an I/O error occurs
      */
-    public void initialize(Path repositoryRoot) {
-        this.repositoryRoot = repositoryRoot;
-        this.sourceRoots.clear();
-        discoverSourceRoots();
-    }
-    
-    /**
-     * Discover source roots (src/main/java, src/test/java, etc.)
-     */
-    private void discoverSourceRoots() {
-        Path mainJava = repositoryRoot.resolve("src/main/java");
-        //Path testJava = repositoryRoot.resolve("src/test/java");
-        
-        if (Files.exists(mainJava)) {
-            sourceRoots.add(mainJava.toString());
-        }
-//        if (Files.exists(testJava)) {
-//            sourceRoots.add(testJava.toString());
-//        }
-    }
-    
-    /**
-     * Scan and return all Java source files.
-     */
-    public List<Path> scanSourceFiles() throws IOException {
+    public List<Path> scanSourceFiles(Path repositoryRoot) throws IOException {
         List<Path> sourceFiles = new ArrayList<>();
-        for (String sourceRoot : sourceRoots) {
-            Path rootPath = Paths.get(sourceRoot);
-            try (Stream<Path> paths = Files.walk(rootPath)) {
+        List<Path> sourceRoots = discoverSourceRoots(repositoryRoot);
+        
+        for (Path sourceRoot : sourceRoots) {
+            try (Stream<Path> paths = Files.walk(sourceRoot)) {
                 paths.filter(Files::isRegularFile)
                      .filter(p -> p.toString().endsWith(".java"))
                      .forEach(sourceFiles::add);
@@ -65,5 +39,19 @@ public class RepositoryScanner {
         return sourceFiles;
     }
 
+    /**
+     * Discover source roots (src/main/java, src/test/java, etc.)
+     */
+    private List<Path> discoverSourceRoots(Path repositoryRoot) {
+        List<Path> roots = new ArrayList<>();
+        Path mainJava = repositoryRoot.resolve("src/main/java");
+        
+        if (Files.exists(mainJava)) {
+            roots.add(mainJava);
+        }
+        // Add other conventions here if needed
+        
+        return roots;
+    }
 }
 
