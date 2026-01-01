@@ -1,0 +1,118 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------------< com.vidnyan:ate >---------------------------
+[INFO] Building ate 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.1:run (default-cli) > test-compile @ ate >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ ate ---
+[INFO] Copying 1 resource from src/main/resources to target/classes
+[INFO] Copying 3 resources from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ ate ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ ate ---
+[INFO] skip non existing resourceDirectory /Users/vikas/Desktop/java/ate/src/test/resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ ate ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:4.0.1:run (default-cli) < test-compile @ ate <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.1:run (default-cli) @ ate ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.1)
+
+2026-01-01T19:02:15.139+05:30  INFO 24772 --- [           main] com.vidnyan.ate.AteApplication           : Starting AteApplication using Java 25.0.1 with PID 24772 (/Users/vikas/Desktop/java/ate/target/classes started by vikas in /Users/vikas/Desktop/java/ate)
+2026-01-01T19:02:15.145+05:30  INFO 24772 --- [           main] com.vidnyan.ate.AteApplication           : No active profile set, falling back to 1 default profile: "default"
+2026-01-01T19:02:19.119+05:30  INFO 24772 --- [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-01-01T19:02:19.171+05:30  INFO 24772 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-01-01T19:02:19.171+05:30  INFO 24772 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-01-01T19:02:19.320+05:30  INFO 24772 --- [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 3968 ms
+2026-01-01T19:02:20.859+05:30  INFO 24772 --- [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-01-01T19:02:20.864+05:30  INFO 24772 --- [           main] com.vidnyan.ate.AteApplication           : Started AteApplication in 6.883 seconds (process running for 7.853)
+2026-01-01T19:02:20.874+05:30  INFO 24772 --- [           main] com.vidnyan.ate.AnalysisEngine           : Starting analysis of repository: /Users/vikas/Desktop/java/ate/.
+2026-01-01T19:02:20.874+05:30  INFO 24772 --- [           main] com.vidnyan.ate.AnalysisEngine           : Step 1: Scanning repository...
+2026-01-01T19:02:20.891+05:30  INFO 24772 --- [           main] com.vidnyan.ate.AnalysisEngine           : Found 25 source files
+2026-01-01T19:02:20.891+05:30  INFO 24772 --- [           main] com.vidnyan.ate.AnalysisEngine           : Step 2: Parsing files to AST...
+2026-01-01T19:02:21.399+05:30  INFO 24772 --- [           main] com.vidnyan.ate.AnalysisEngine           : Successfully parsed 23/25 files
+2026-01-01T19:02:21.400+05:30  INFO 24772 --- [           main] com.vidnyan.ate.AnalysisEngine           : Step 3: Building Source Model...
+2026-01-01T19:02:21.400+05:30  INFO 24772 --- [           main] c.v.a.model.builder.SourceModelBuilder   : Building Source Model from 25 files
+2026-01-01T19:02:21.423+05:30  INFO 24772 --- [           main] com.vidnyan.ate.AnalysisEngine           : Source Model built: 29 types, 51 methods, 116 fields
+2026-01-01T19:02:21.424+05:30  INFO 24772 --- [           main] com.vidnyan.ate.AnalysisEngine           : Step 4: Building graphs...
+2026-01-01T19:02:21.427+05:30  INFO 24772 --- [           main] com.vidnyan.ate.AnalysisEngine           : Call graph: 0 method relationships, Dependency graph: 1 package relationships
+2026-01-01T19:02:21.427+05:30  INFO 24772 --- [           main] com.vidnyan.ate.AnalysisEngine           : Step 5: Initializing rule engine...
+2026-01-01T19:02:21.427+05:30  INFO 24772 --- [           main] com.vidnyan.ate.AnalysisEngine           : Step 6: Loading rules...
+2026-01-01T19:02:21.607+05:30  INFO 24772 --- [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-01-01T19:02:21.628+05:30 ERROR 24772 --- [           main] o.s.boot.SpringApplication               : Application run failed
+
+java.lang.IllegalStateException: Failed to execute CommandLineRunner
+	at org.springframework.boot.SpringApplication.lambda$callRunner$2(SpringApplication.java:799) ~[spring-boot-4.0.1.jar:4.0.1]
+	at org.springframework.util.function.ThrowingConsumer.accept(ThrowingConsumer.java:66) ~[spring-core-7.0.2.jar:7.0.2]
+	at org.springframework.util.function.ThrowingConsumer$1.accept(ThrowingConsumer.java:86) ~[spring-core-7.0.2.jar:7.0.2]
+	at org.springframework.boot.SpringApplication.callRunner(SpringApplication.java:800) ~[spring-boot-4.0.1.jar:4.0.1]
+	at org.springframework.boot.SpringApplication.callRunner(SpringApplication.java:791) ~[spring-boot-4.0.1.jar:4.0.1]
+	at org.springframework.boot.SpringApplication.lambda$callRunners$0(SpringApplication.java:776) ~[spring-boot-4.0.1.jar:4.0.1]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186) ~[na:na]
+	at java.base/java.util.stream.SortedOps$SizedRefSortingSink.end(SortedOps.java:357) ~[na:na]
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:571) ~[na:na]
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:560) ~[na:na]
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:153) ~[na:na]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:176) ~[na:na]
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:265) ~[na:na]
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:632) ~[na:na]
+	at org.springframework.boot.SpringApplication.callRunners(SpringApplication.java:776) ~[spring-boot-4.0.1.jar:4.0.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:328) ~[spring-boot-4.0.1.jar:4.0.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1365) ~[spring-boot-4.0.1.jar:4.0.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-4.0.1.jar:4.0.1]
+	at com.vidnyan.ate.AteApplication.main(AteApplication.java:12) ~[classes/:na]
+Caused by: com.fasterxml.jackson.databind.exc.InvalidDefinitionException: Cannot construct instance of `com.vidnyan.ate.rule.RuleDefinition` (no Creators, like default constructor, exist): cannot deserialize from Object value (no delegate- or property-based Creator)
+ at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 2, column: 3]
+	at com.fasterxml.jackson.databind.exc.InvalidDefinitionException.from(InvalidDefinitionException.java:67) ~[jackson-databind-2.20.1.jar:2.20.1]
+	at com.fasterxml.jackson.databind.DeserializationContext.reportBadDefinition(DeserializationContext.java:1943) ~[jackson-databind-2.20.1.jar:2.20.1]
+	at com.fasterxml.jackson.databind.DatabindContext.reportBadDefinition(DatabindContext.java:415) ~[jackson-databind-2.20.1.jar:2.20.1]
+	at com.fasterxml.jackson.databind.DeserializationContext.handleMissingInstantiator(DeserializationContext.java:1430) ~[jackson-databind-2.20.1.jar:2.20.1]
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerBase.deserializeFromObjectUsingNonDefault(BeanDeserializerBase.java:1514) ~[jackson-databind-2.20.1.jar:2.20.1]
+	at com.fasterxml.jackson.databind.deser.BeanDeserializer.deserializeFromObject(BeanDeserializer.java:340) ~[jackson-databind-2.20.1.jar:2.20.1]
+	at com.fasterxml.jackson.databind.deser.BeanDeserializer.deserialize(BeanDeserializer.java:177) ~[jackson-databind-2.20.1.jar:2.20.1]
+	at com.fasterxml.jackson.databind.deser.DefaultDeserializationContext.readRootValue(DefaultDeserializationContext.java:342) ~[jackson-databind-2.20.1.jar:2.20.1]
+	at com.fasterxml.jackson.databind.ObjectMapper._readMapAndClose(ObjectMapper.java:5038) ~[jackson-databind-2.20.1.jar:2.20.1]
+	at com.fasterxml.jackson.databind.ObjectMapper.readValue(ObjectMapper.java:3954) ~[jackson-databind-2.20.1.jar:2.20.1]
+	at com.fasterxml.jackson.databind.ObjectMapper.readValue(ObjectMapper.java:3922) ~[jackson-databind-2.20.1.jar:2.20.1]
+	at com.vidnyan.ate.rule.RuleEngine.loadRules(RuleEngine.java:49) ~[classes/:na]
+	at com.vidnyan.ate.AnalysisEngine.analyze(AnalysisEngine.java:107) ~[classes/:na]
+	at com.vidnyan.ate.AnalysisEngine.run(AnalysisEngine.java:129) ~[classes/:na]
+	at org.springframework.boot.SpringApplication.lambda$callRunner$1(SpringApplication.java:792) ~[spring-boot-4.0.1.jar:4.0.1]
+	at org.springframework.util.function.ThrowingConsumer$1.acceptWithException(ThrowingConsumer.java:82) ~[spring-core-7.0.2.jar:7.0.2]
+	at org.springframework.util.function.ThrowingConsumer.accept(ThrowingConsumer.java:60) ~[spring-core-7.0.2.jar:7.0.2]
+	... 17 common frames omitted
+
+2026-01-01T19:02:21.649+05:30  INFO 24772 --- [           main] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-01-01T19:02:21.675+05:30  INFO 24772 --- [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  12.785 s
+[INFO] Finished at: 2026-01-01T19:02:21+05:30
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:4.0.1:run (default-cli) on project ate: Process terminated with exit code: 1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
