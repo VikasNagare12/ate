@@ -129,18 +129,18 @@ public class AnalysisEngine implements CommandLineRunner {
         ReportModel report = analyze();
         
         // Print summary
-        System.out.println("\n=== Analysis Report ===");
-        System.out.printf("Total Violations: %d%n", report.getSummary().getTotalViolations());
-        System.out.printf("BLOCKER: %d%n", report.getSummary().getBlockerCount());
-        System.out.printf("ERROR: %d%n", report.getSummary().getErrorCount());
-        System.out.printf("WARN: %d%n", report.getSummary().getWarnCount());
-        System.out.printf("Result: %s%n", report.getResult());
+        log.info("\n=== Analysis Report ===");
+        log.info("Total Violations: {}", report.getSummary().getTotalViolations());
+        log.info("BLOCKER: {}", report.getSummary().getBlockerCount());
+        log.info("ERROR: {}", report.getSummary().getErrorCount());
+        log.info("WARN: {}", report.getSummary().getWarnCount());
+        log.info("Result: {}", report.getResult());
         
         // Print violations
         if (!report.getViolations().isEmpty()) {
-            System.out.println("\n=== Violations ===");
+            log.info("\n=== Violations ===");
             for (var violation : report.getViolations()) {
-                System.out.printf("[%s] %s: %s%n",
+                log.info("[{}] {}: {}",
                         violation.getSeverity(),
                         violation.getLocation().toDisplayString(),
                         violation.getMessage());
