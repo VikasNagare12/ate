@@ -1,5 +1,7 @@
 package com.vidnyan.ate.scanner;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -15,6 +17,8 @@ import java.util.stream.Stream;
  * Discovers all .java files in the source roots.
  */
 @Component
+@Getter
+@Setter
 public class RepositoryScanner {
     
     private Path repositoryRoot;
@@ -34,14 +38,14 @@ public class RepositoryScanner {
      */
     private void discoverSourceRoots() {
         Path mainJava = repositoryRoot.resolve("src/main/java");
-        Path testJava = repositoryRoot.resolve("src/test/java");
+        //Path testJava = repositoryRoot.resolve("src/test/java");
         
         if (Files.exists(mainJava)) {
             sourceRoots.add(mainJava.toString());
         }
-        if (Files.exists(testJava)) {
-            sourceRoots.add(testJava.toString());
-        }
+//        if (Files.exists(testJava)) {
+//            sourceRoots.add(testJava.toString());
+//        }
     }
     
     /**
@@ -49,7 +53,6 @@ public class RepositoryScanner {
      */
     public List<Path> scanSourceFiles() throws IOException {
         List<Path> sourceFiles = new ArrayList<>();
-        
         for (String sourceRoot : sourceRoots) {
             Path rootPath = Paths.get(sourceRoot);
             try (Stream<Path> paths = Files.walk(rootPath)) {
@@ -61,13 +64,6 @@ public class RepositoryScanner {
         
         return sourceFiles;
     }
-    
-    public Path getRepositoryRoot() {
-        return repositoryRoot;
-    }
-    
-    public List<String> getSourceRoots() {
-        return new ArrayList<>(sourceRoots);
-    }
+
 }
 
