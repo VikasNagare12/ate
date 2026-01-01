@@ -1,5 +1,7 @@
 package com.vidnyan.ate.scanner;
 
+import org.springframework.stereotype.Component;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,14 +14,18 @@ import java.util.stream.Stream;
  * Scans repository for Java source files.
  * Discovers all .java files in the source roots.
  */
+@Component
 public class RepositoryScanner {
     
-    private final Path repositoryRoot;
-    private final List<String> sourceRoots;
+    private Path repositoryRoot;
+    private final List<String> sourceRoots = new ArrayList<>();
     
-    public RepositoryScanner(Path repositoryRoot) {
+    /**
+     * Initialize scanner with repository root.
+     */
+    public void initialize(Path repositoryRoot) {
         this.repositoryRoot = repositoryRoot;
-        this.sourceRoots = new ArrayList<>();
+        this.sourceRoots.clear();
         discoverSourceRoots();
     }
     

@@ -9,6 +9,7 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSol
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import lombok.Builder;
 import lombok.Value;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,6 +21,7 @@ import java.util.List;
  * Parses Java source files into ASTs using JavaParser.
  * Extracts raw facts from ASTs.
  */
+@Component
 public class AstParser {
     
     private final JavaParser javaParser;

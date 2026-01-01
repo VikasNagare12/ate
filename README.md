@@ -129,26 +129,59 @@ Detects circular dependencies between packages.
 
 ## Usage
 
-### Command Line
+### Spring Boot Application
 
-```bash
-java -cp target/ate-0.0.1-SNAPSHOT.jar com.vidnyan.ate.AnalysisEngine \
-  /path/to/repository \
-  /path/to/rules.json
+The engine runs as a Spring Boot application using `CommandLineRunner`. All components use dependency injection - no `new` keyword needed!
+
+#### Configuration
+
+Configure via `application.properties`:
+
+```properties
+# Path to repository to analyze
+ate.analysis.repository-path=/path/to/repository
+
+# Rule files (can be classpath resources or file system paths)
+ate.analysis.rule-files[0]=src/main/resources/rules/scheduled-job-resiliency.json
+ate.analysis.rule-files[1]=src/main/resources/rules/transaction-boundary-violation.json
+ate.analysis.rule-files[2]=src/main/resources/rules/circular-dependency.json
 ```
 
-### Programmatic
+Or via `application.yml`:
+
+```yaml
+ate:
+  analysis:
+    repository-path: /path/to/repository
+    rule-files:
+      - src/main/resources/rules/scheduled-job-resiliency.json
+      - src/main/resources/rules/transaction-boundary-violation.json
+      - src/main/resources/rules/circular-dependency.json
+```
+
+#### Running
+
+```bash
+# Using Maven
+mvn spring-boot:run
+
+# Or build and run JAR
+mvn clean package
+java -jar target/ate-0.0.1-SNAPSHOT.jar
+```
+
+#### Programmatic Usage (with Spring Context)
 
 ```java
-Path repoPath = Paths.get("/path/to/repository");
-List<Path> ruleFiles = List.of(Paths.get("rules/default-rules.json"));
+@Autowired
+private AnalysisEngine analysisEngine;
 
-AnalysisEngine engine = new AnalysisEngine(repoPath, ruleFiles);
-ReportModel report = engine.analyze();
-
-// Check result
-if (report.getResult() == ReportModel.AnalysisResult.FAIL) {
-    // Handle failure
+public void runAnalysis() throws IOException {
+    ReportModel report = analysisEngine.analyze();
+    
+    if (report.getResult() == ReportModel.AnalysisResult.FAIL) {
+        // Handle failure
+    }
 }
 ```
 

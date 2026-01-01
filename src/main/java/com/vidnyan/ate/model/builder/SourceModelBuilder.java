@@ -3,10 +3,13 @@ package com.vidnyan.ate.model.builder;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.AnnotationExpr;
+import com.github.javaparser.ast.nodeTypes.NodeWithModifiers;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.vidnyan.ate.model.*;
+import com.vidnyan.ate.model.Parameter;
 import com.vidnyan.ate.parser.AstParser;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -16,6 +19,7 @@ import java.util.stream.Collectors;
  * This is the MOST IMPORTANT component - transforms ASTs into the immutable Source Model.
  */
 @Slf4j
+@Component
 public class SourceModelBuilder {
     
     private final Map<String, Type> types = new HashMap<>();
@@ -36,7 +40,7 @@ public class SourceModelBuilder {
      */
     public SourceModel build(List<AstParser.ParseResult> parseResults) {
         log.info("Building Source Model from {} files", parseResults.size());
-        
+
         // Phase 1: Extract entities from ASTs
         for (AstParser.ParseResult result : parseResults) {
             if (result.isSuccess()) {
@@ -93,7 +97,6 @@ public class SourceModelBuilder {
         if (decl.isAnnotationDeclaration()) {
             kind = TypeKind.ANNOTATION;
         }
-        
         Set<Modifier> modifiers = extractModifiers(decl);
         List<com.vidnyan.ate.model.Annotation> typeAnnotations = extractAnnotations(decl.getAnnotations(), filePath);
         
@@ -194,8 +197,8 @@ public class SourceModelBuilder {
                 .fields(typeFields)
                 .location(Location.builder()
                         .filePath(filePath.toString())
-                        .line(decl.getBegin().map(p -> p.line).orElse(0))
-                        .column(decl.getBegin().map(p -> p.column).orElse(0))
+                        .line(decl.getBegin().isPresent() ? decl.getBegin().get().line : 0)
+                        .column(decl.getBegin().isPresent() ? decl.getBegin().get().column : 0)
                         .build())
                 .isSpringComponent(false)
                 .isSpringConfiguration(false)
@@ -210,7 +213,7 @@ public class SourceModelBuilder {
         String signature = buildMethodSignature(decl);
         String fqn = containingTypeFqn + "#" + signature;
         
-        TypeRef returnType = TypeRef.of(decl.getType().map(t -> t.asString()).orElse("void"));
+        TypeRef returnType = TypeRef.of(decl.getType().asString());
         
         List<Parameter> parameters = decl.getParameters().stream()
                 .map(p -> Parameter.builder()
@@ -296,16 +299,48 @@ public class SourceModelBuilder {
     }
     
     /**
-     * Extract modifiers from a node.
+     * Extract modifiers from a node that implements NodeWithModifiers.
      */
     private Set<Modifier> extractModifiers(com.github.javaparser.ast.body.BodyDeclaration<?> decl) {
         Set<Modifier> modifiers = new HashSet<>();
-        if (decl.isPublic()) modifiers.add(Modifier.PUBLIC);
-        if (decl.isPrivate()) modifiers.add(Modifier.PRIVATE);
-        if (decl.isProtected()) modifiers.add(Modifier.PROTECTED);
-        if (decl.isStatic()) modifiers.add(Modifier.STATIC);
-        if (decl.isFinal()) modifiers.add(Modifier.FINAL);
-        if (decl.isAbstract()) modifiers.add(Modifier.ABSTRACT);
+        
+        // Check if the node implements NodeWithModifiers interface
+        if (decl instanceof com.github.javaparser.ast.nodeTypes.NodeWithModifiers<?>) {
+            @SuppressWarnings("unchecked")
+            com.github.javaparser.ast.nodeTypes.NodeWithModifiers<?> nodeWithModifiers = 
+                (com.github.javaparser.ast.nodeTypes.NodeWithModifiers<?>) decl;
+            
+            // Get modifiers from the node
+            for (com.github.javaparser.ast.Modifier mod : nodeWithModifiers.getModifiers()) {
+                // JavaParser Modifier has a getKeyword() method that returns Keyword enum
+                com.github.javaparser.ast.Modifier.Keyword keyword = mod.getKeyword();
+                switch (keyword) {
+                    case PUBLIC -> modifiers.add(Modifier.PUBLIC);
+                    case PRIVATE -> modifiers.add(Modifier.PRIVATE);
+                    case PROTECTED -> modifiers.add(Modifier.PROTECTED);
+                    case STATIC -> modifiers.add(Modifier.STATIC);
+                    case FINAL -> modifiers.add(Modifier.FINAL);
+                    case ABSTRACT -> modifiers.add(Modifier.ABSTRACT);
+                    case SYNCHRONIZED -> modifiers.add(Modifier.SYNCHRONIZED);
+                    case VOLATILE -> modifiers.add(Modifier.VOLATILE);
+                    case TRANSIENT -> modifiers.add(Modifier.TRANSIENT);
+                    case NATIVE -> modifiers.add(Modifier.NATIVE);
+                    case STRICTFP -> modifiers.add(Modifier.STRICTFP);
+                    default -> {
+                        // Ignore other modifiers
+                    }
+                }
+            }
+            
+            // If no access modifier is present, it's package-private
+            boolean hasAccessModifier = modifiers.contains(Modifier.PUBLIC) ||
+                                       modifiers.contains(Modifier.PRIVATE) ||
+                                       modifiers.contains(Modifier.PROTECTED);
+            if (!hasAccessModifier) {
+                modifiers.add(Modifier.PACKAGE_PRIVATE);
+            }
+        }
+        
         return modifiers;
     }
     

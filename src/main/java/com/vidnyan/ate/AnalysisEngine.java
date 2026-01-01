@@ -10,7 +10,10 @@ import com.vidnyan.ate.rule.RuleDefinition;
 import com.vidnyan.ate.rule.RuleEngine;
 import com.vidnyan.ate.rule.Violation;
 import com.vidnyan.ate.scanner.RepositoryScanner;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -30,39 +33,59 @@ import java.util.List;
  * 7. Generate report
  */
 @Slf4j
-public class AnalysisEngine {
+@Component
+@RequiredArgsConstructor
+public class AnalysisEngine implements CommandLineRunner {
     
-    private final Path repositoryRoot;
-    private final List<Path> ruleFiles;
-    
-    public AnalysisEngine(Path repositoryRoot, List<Path> ruleFiles) {
-        this.repositoryRoot = repositoryRoot;
-        this.ruleFiles = ruleFiles;
-    }
+    private final RepositoryScanner repositoryScanner;
+    private final AstParser astParser;
+    private final SourceModelBuilder sourceModelBuilder;
+    private final RuleEngine ruleEngine;
+    private final AnalysisProperties analysisProperties;
     
     /**
      * Execute the complete analysis pipeline.
      */
     public ReportModel analyze() throws IOException {
+        Path repositoryRoot = Paths.get(analysisProperties.getRepositoryPath()).toAbsolutePath();
+        List<Path> ruleFiles = analysisProperties.getRuleFiles().stream()
+                .map(path -> {
+                    Path p = Paths.get(path);
+                    // If relative path, try to resolve from classpath resources
+                    if (!p.isAbsolute()) {
+                        // Try as classpath resource first
+                        var resource = getClass().getClassLoader().getResource(path);
+                        if (resource != null) {
+                            try {
+                                return Paths.get(resource.toURI());
+                            } catch (Exception e) {
+                                // Fall through to file system path
+                            }
+                        }
+                        // Fall back to file system relative path
+                        return Paths.get(path).toAbsolutePath();
+                    }
+                    return p;
+                })
+                .toList();
+        
         log.info("Starting analysis of repository: {}", repositoryRoot);
         
         // Step 1: Scan repository
         log.info("Step 1: Scanning repository...");
-        RepositoryScanner scanner = new RepositoryScanner(repositoryRoot);
-        List<Path> sourceFiles = scanner.scanSourceFiles();
+        repositoryScanner.initialize(repositoryRoot);
+        List<Path> sourceFiles = repositoryScanner.scanSourceFiles();
         log.info("Found {} source files", sourceFiles.size());
         
         // Step 2: Parse files to AST
         log.info("Step 2: Parsing files to AST...");
-        AstParser parser = new AstParser();
-        List<AstParser.ParseResult> parseResults = parser.parseFiles(sourceFiles);
+        List<AstParser.ParseResult> parseResults = astParser.parseFiles(sourceFiles);
         long successCount = parseResults.stream().filter(AstParser.ParseResult::isSuccess).count();
         log.info("Successfully parsed {}/{} files", successCount, parseResults.size());
         
         // Step 3: Build Source Model
         log.info("Step 3: Building Source Model...");
-        SourceModelBuilder builder = new SourceModelBuilder();
-        SourceModel sourceModel = builder.build(parseResults);
+        SourceModel sourceModel = sourceModelBuilder.build(parseResults);
         log.info("Source Model built: {} types, {} methods, {} fields",
                 sourceModel.getTypes().size(),
                 sourceModel.getMethods().size(),
@@ -76,19 +99,22 @@ public class AnalysisEngine {
                 callGraph.getOutgoingCalls().size(),
                 dependencyGraph.getPackageDependencies().size());
         
-        // Step 5: Load rules
-        log.info("Step 5: Loading rules...");
-        RuleEngine ruleEngine = new RuleEngine(sourceModel, callGraph, dependencyGraph);
+        // Step 5: Initialize rule engine
+        log.info("Step 5: Initializing rule engine...");
+        ruleEngine.initialize(sourceModel, callGraph, dependencyGraph);
+        
+        // Step 6: Load rules
+        log.info("Step 6: Loading rules...");
         List<RuleDefinition> rules = ruleEngine.loadRules(ruleFiles);
         log.info("Loaded {} rules", rules.size());
         
-        // Step 6: Evaluate rules
-        log.info("Step 6: Evaluating rules...");
+        // Step 7: Evaluate rules
+        log.info("Step 7: Evaluating rules...");
         List<Violation> violations = ruleEngine.evaluateRules(rules);
         log.info("Found {} violations", violations.size());
         
-        // Step 7: Generate report
-        log.info("Step 7: Generating report...");
+        // Step 8: Generate report
+        log.info("Step 8: Generating report...");
         ReportModel report = ReportModel.build(violations);
         log.info("Report generated: {} violations ({} BLOCKER, {} ERROR, {} WARN)",
                 report.getSummary().getTotalViolations(),
@@ -99,22 +125,9 @@ public class AnalysisEngine {
         return report;
     }
     
-    /**
-     * Main entry point for CLI usage.
-     */
-    public static void main(String[] args) throws IOException {
-        if (args.length < 1) {
-            System.err.println("Usage: AnalysisEngine <repository-path> [rule-files...]");
-            System.exit(1);
-        }
-        
-        Path repoPath = Paths.get(args[0]);
-        List<Path> ruleFiles = args.length > 1 ?
-                List.of(Paths.get(args[1])) : // Single rule file for now
-                List.of(Paths.get("rules/default-rules.json")); // Default
-        
-        AnalysisEngine engine = new AnalysisEngine(repoPath, ruleFiles);
-        ReportModel report = engine.analyze();
+    @Override
+    public void run(String... args) throws Exception {
+        ReportModel report = analyze();
         
         // Print summary
         System.out.println("\n=== Analysis Report ===");

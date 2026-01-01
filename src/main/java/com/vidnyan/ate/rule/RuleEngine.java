@@ -5,6 +5,7 @@ import com.vidnyan.ate.graph.CallGraph;
 import com.vidnyan.ate.graph.DependencyGraph;
 import com.vidnyan.ate.model.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,18 +18,25 @@ import java.util.stream.Collectors;
  * Rules are loaded from JSON and query the model/graphs (read-only).
  */
 @Slf4j
+@Service
 public class RuleEngine {
     
-    private final SourceModel sourceModel;
-    private final CallGraph callGraph;
-    private final DependencyGraph dependencyGraph;
+    private SourceModel sourceModel;
+    private CallGraph callGraph;
+    private DependencyGraph dependencyGraph;
     private final ObjectMapper objectMapper;
     
-    public RuleEngine(SourceModel sourceModel, CallGraph callGraph, DependencyGraph dependencyGraph) {
+    public RuleEngine() {
+        this.objectMapper = new ObjectMapper();
+    }
+    
+    /**
+     * Initialize rule engine with model and graphs.
+     */
+    public void initialize(SourceModel sourceModel, CallGraph callGraph, DependencyGraph dependencyGraph) {
         this.sourceModel = sourceModel;
         this.callGraph = callGraph;
         this.dependencyGraph = dependencyGraph;
-        this.objectMapper = new ObjectMapper();
     }
     
     /**
