@@ -35,6 +35,10 @@ public class SourceModelBuilder {
     private final Map<String, List<Relationship>> relationshipsBySource = new HashMap<>();
     private final Map<String, List<Relationship>> relationshipsByTarget = new HashMap<>();
     
+    // Store AST nodes for method call extraction
+    private final Map<String, MethodDeclaration> methodAstNodes = new HashMap<>();
+    private final Map<String, CompilationUnit> compilationUnits = new HashMap<>();
+    
     /**
      * Build Source Model from parse results.
      */
@@ -44,20 +48,25 @@ public class SourceModelBuilder {
         // Phase 1: Extract entities from ASTs
         for (AstParser.ParseResult result : parseResults) {
             if (result.isSuccess()) {
-                extractEntities(result.getCompilationUnit(), result.getFilePath());
+                CompilationUnit cu = result.getCompilationUnit();
+                extractEntities(cu, result.getFilePath());
+                compilationUnits.put(result.getFilePath().toString(), cu);
             }
         }
         
-        // Phase 2: Resolve symbols and relationships
+        // Phase 2: Extract method calls
+        extractMethodCalls();
+        
+        // Phase 3: Resolve symbols and relationships
         resolveRelationships();
         
-        // Phase 3: Build indexes
+        // Phase 4: Build indexes
         buildIndexes();
         
-        // Phase 4: Enrich metadata
+        // Phase 5: Enrich metadata
         enrichMetadata();
         
-        // Phase 5: Freeze model
+        // Phase 6: Freeze model
         return freezeModel();
     }
     
@@ -117,6 +126,8 @@ public class SourceModelBuilder {
             Method method = extractMethod(methodDecl, fqn, filePath);
             typeMethods.add(method);
             methods.put(method.getFullyQualifiedName(), method);
+            // Store AST node for later method call extraction
+            methodAstNodes.put(method.getFullyQualifiedName(), methodDecl);
         }
         
         // Extract fields
@@ -174,6 +185,8 @@ public class SourceModelBuilder {
             Method method = extractMethod(methodDecl, fqn, filePath);
             typeMethods.add(method);
             methods.put(method.getFullyQualifiedName(), method);
+            // Store AST node for later method call extraction
+            methodAstNodes.put(method.getFullyQualifiedName(), methodDecl);
         }
         
         List<Field> typeFields = new ArrayList<>();
@@ -373,11 +386,133 @@ public class SourceModelBuilder {
     }
     
     /**
+     * Extract method calls from method bodies.
+     */
+    private void extractMethodCalls() {
+        log.info("Extracting method calls from {} methods", methodAstNodes.size());
+        
+        for (Map.Entry<String, MethodDeclaration> entry : methodAstNodes.entrySet()) {
+            String callerFqn = entry.getKey();
+            MethodDeclaration methodDecl = entry.getValue();
+            
+            // Skip methods without body (abstract, interface methods)
+            if (!methodDecl.getBody().isPresent()) {
+                continue;
+            }
+            
+            // Visit method body to find method calls
+            methodDecl.getBody().get().accept(new VoidVisitorAdapter<Void>() {
+                @Override
+                public void visit(com.github.javaparser.ast.expr.MethodCallExpr call, Void arg) {
+                    super.visit(call, arg);
+                    
+                    // Build callee signature (best effort)
+                    String methodName = call.getNameAsString();
+                    String calleeSignature = buildCalleeSignature(call);
+                    
+                    // Determine call type
+                    Relationship.CallType callType = determineCallType(call);
+                    
+                    // Create CALLS relationship
+                    relationships.add(Relationship.builder()
+                            .type(RelationshipType.CALLS)
+                            .sourceEntityId(callerFqn)
+                            .targetEntityId(calleeSignature)
+                            .callType(callType)
+                            .location(Location.builder()
+                                    .filePath(methodDecl.findCompilationUnit()
+                                            .flatMap(cu -> cu.getStorage())
+                                            .map(s -> s.getPath().toString())
+                                            .orElse("unknown"))
+                                    .line(call.getBegin().map(p -> p.line).orElse(0))
+                                    .column(call.getBegin().map(p -> p.column).orElse(0))
+                                    .build())
+                            .build());
+                }
+                
+                @Override
+                public void visit(com.github.javaparser.ast.expr.ObjectCreationExpr creation, Void arg) {
+                    super.visit(creation, arg);
+                    
+                    // Constructor calls
+                    String typeName = creation.getType().getNameAsString();
+                    String constructorSignature = buildConstructorSignature(creation);
+                    
+                    relationships.add(Relationship.builder()
+                            .type(RelationshipType.CALLS)
+                            .sourceEntityId(callerFqn)
+                            .targetEntityId(constructorSignature)
+                            .callType(Relationship.CallType.DIRECT)
+                            .location(Location.builder()
+                                    .filePath(methodDecl.findCompilationUnit()
+                                            .flatMap(cu -> cu.getStorage())
+                                            .map(s -> s.getPath().toString())
+                                            .orElse("unknown"))
+                                    .line(creation.getBegin().map(p -> p.line).orElse(0))
+                                    .column(creation.getBegin().map(p -> p.column).orElse(0))
+                                    .build())
+                            .build());
+                }
+            }, null);
+        }
+        
+        log.info("Extracted {} CALLS relationships", 
+                relationships.stream().filter(r -> r.getType() == RelationshipType.CALLS).count());
+    }
+    
+    /**
+     * Build callee signature from method call expression.
+     */
+    private String buildCalleeSignature(com.github.javaparser.ast.expr.MethodCallExpr call) {
+        String methodName = call.getNameAsString();
+        
+        // Try to resolve the scope to get the type
+        String scope = "";
+        if (call.getScope().isPresent()) {
+            scope = call.getScope().get().toString();
+        }
+        
+        // Build parameter types (simplified - just count)
+        String params = call.getArguments().stream()
+                .map(arg -> "?")
+                .collect(Collectors.joining(","));
+        
+        // Return simplified signature
+        // Format: scope.methodName(params) or just methodName(params)
+        if (!scope.isEmpty()) {
+            return scope + "." + methodName + "(" + params + ")";
+        }
+        return methodName + "(" + params + ")";
+    }
+    
+    /**
+     * Build constructor signature from object creation expression.
+     */
+    private String buildConstructorSignature(com.github.javaparser.ast.expr.ObjectCreationExpr creation) {
+        String typeName = creation.getType().getNameAsString();
+        String params = creation.getArguments().stream()
+                .map(arg -> "?")
+                .collect(Collectors.joining(","));
+        return typeName + ".<init>(" + params + ")";
+    }
+    
+    /**
+     * Determine the call type based on the call expression.
+     */
+    private Relationship.CallType determineCallType(com.github.javaparser.ast.expr.MethodCallExpr call) {
+        // Simple heuristic: if there's a scope, it's likely virtual
+        // More sophisticated analysis would require type resolution
+        if (call.getScope().isPresent()) {
+            return Relationship.CallType.VIRTUAL;
+        }
+        return Relationship.CallType.DIRECT;
+    }
+    
+    /**
      * Resolve relationships between entities.
-     * TODO: Extract method calls, field accesses, etc.
      */
     private void resolveRelationships() {
-        // For now, create CONTAINS relationships
+        // Create CONTAINS relationships
         for (Type type : types.values()) {
             for (Method method : type.getMethods()) {
                 relationships.add(Relationship.builder()
