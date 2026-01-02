@@ -1,0 +1,42 @@
+{
+  "ruleId": "RETRY_WITHOUT_IDEMPOTENCY",
+  "name": "Retryable Methods Must Be Idempotent",
+  "description": "Methods annotated with @Retryable should not call non-idempotent operations (like sending emails, charging payments, or incrementing counters) without proper idempotency checks. Retries can cause duplicate operations.",
+  "severity": "ERROR",
+  "query": {
+    "type": "graph_traversal",
+    "graph": "call_graph",
+    "pattern": {
+      "start": {
+        "annotation": "Retryable"
+      },
+      "traverse": {
+        "maxDepth": 5
+      },
+      "target": {
+        "mustNotReach": [
+          {
+            "pattern": ".*EmailService.*send.*"
+          },
+          {
+            "pattern": ".*PaymentService.*charge.*"
+          },
+          {
+            "pattern": ".*NotificationService.*notify.*"
+          },
+          {
+            "pattern": ".*MessageProducer.*send.*"
+          }
+        ]
+      }
+    }
+  },
+  "violation": {
+    "message": "@Retryable method '{method}' calls potentially non-idempotent operation '{target}'. Retries may cause duplicate operations.",
+    "remediation": "1. Add idempotency checks (e.g., deduplication keys), or 2. Move non-idempotent operations outside retry boundary, or 3. Use idempotent operation patterns (check-then-act with unique constraints)."
+  },
+  "tags": ["retry", "idempotency", "resilience", "spring-retry"],
+  "references": [
+    "https://docs.spring.io/spring-retry/docs/current/reference/html5/#idempotency"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "ruleId": "ASYNC_TRANSACTION_BOUNDARY",
+  "name": "Async Methods Must Not Call Transactional Methods",
+  "description": "Methods annotated with @Async should not call @Transactional methods because the transaction context is not propagated to async threads. This can lead to LazyInitializationException and data inconsistency.",
+  "severity": "ERROR",
+  "query": {
+    "type": "graph_traversal",
+    "graph": "call_graph",
+    "pattern": {
+      "start": {
+        "annotation": "Async"
+      },
+      "traverse": {
+        "maxDepth": 5
+      },
+      "target": {
+        "mustNotReach": [
+          {
+            "annotation": "Transactional"
+          }
+        ]
+      }
+    }
+  },
+  "violation": {
+    "message": "@Async method '{method}' calls @Transactional method '{target}'. Transaction context is not propagated to async threads.",
+    "remediation": "1. Remove @Transactional from the called method, or 2. Move the async boundary after the transaction completes, or 3. Use TransactionTemplate for programmatic transaction management in async context."
+  },
+  "tags": ["transaction", "async", "spring", "concurrency"],
+  "references": [
+    "https://docs.spring.io/spring-framework/docs/current/reference/html/data-access.html#transaction-declarative-async"
+  ]
+}

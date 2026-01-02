@@ -25,6 +25,9 @@ public class CallGraph {
     // Call sites: method → list of call relationships
     Map<String, List<Relationship>> callSites;
     
+    // Reference to source model for library boundary detection
+    SourceModel sourceModel;
+    
     /**
      * Build call graph from Source Model.
      */
@@ -51,6 +54,7 @@ public class CallGraph {
         }
         
         return CallGraph.builder()
+                .sourceModel(model)
                 .outgoingCalls(Collections.unmodifiableMap(outgoing))
                 .incomingCalls(Collections.unmodifiableMap(incoming))
                 .callSites(Collections.unmodifiableMap(sites))
@@ -79,9 +83,40 @@ public class CallGraph {
     }
     
     /**
+     * Check if a method is from an external library (not in our source model).
+     * Library methods are treated as leaf nodes - we don't trace into them.
+     */
+    public boolean isLibraryMethod(String methodSignature) {
+        // If method is not in our source model, it's a library method
+        return sourceModel.getMethod(methodSignature) == null;
+    }
+    
+    /**
+     * Get callees, excluding library methods if requested.
+     */
+    public List<String> getCallees(String methodSignature, boolean excludeLibraries) {
+        if (!excludeLibraries) {
+            return getCallees(methodSignature);
+        }
+        
+        return getCallees(methodSignature).stream()
+                .filter(callee -> !isLibraryMethod(callee))
+                .toList();
+    }
+    
+    /**
      * Find all methods reachable from a start method (transitive closure).
+     * Stops at library boundaries by default.
      */
     public Set<String> findReachableMethods(String startMethod, int maxDepth) {
+        return findReachableMethods(startMethod, maxDepth, true);
+    }
+    
+    /**
+     * Find all methods reachable from a start method (transitive closure).
+     * @param stopAtLibraries if true, don't traverse into library methods
+     */
+    public Set<String> findReachableMethods(String startMethod, int maxDepth, boolean stopAtLibraries) {
         Set<String> visited = new HashSet<>();
         Queue<DepthNode> queue = new LinkedList<>();
         queue.add(new DepthNode(startMethod, 0));
@@ -92,6 +127,11 @@ public class CallGraph {
                 continue;
             }
             visited.add(node.method);
+            
+            // Stop at library boundaries if requested
+            if (stopAtLibraries && isLibraryMethod(node.method)) {
+                continue;
+            }
             
             for (String callee : getCallees(node.method)) {
                 if (!visited.contains(callee)) {
@@ -108,21 +148,30 @@ public class CallGraph {
     /**
      * Find all call chains (execution paths) from a start method.
      * Returns a list of call chains, where each chain is a list of method signatures.
+     * Stops at library boundaries - e.g., a→b→c→JdbcTemplate.query() stops at JdbcTemplate.
      * Example: [["a", "b", "c"], ["a", "b", "d"], ["a", "e"]]
      */
     public List<List<String>> findCallChains(String startMethod, int maxDepth) {
+        return findCallChains(startMethod, maxDepth, true);
+    }
+    
+    /**
+     * Find all call chains (execution paths) from a start method.
+     * @param stopAtLibraries if true, treat library methods as leaf nodes
+     */
+    public List<List<String>> findCallChains(String startMethod, int maxDepth, boolean stopAtLibraries) {
         List<List<String>> allChains = new ArrayList<>();
         List<String> currentChain = new ArrayList<>();
         Set<String> visited = new HashSet<>();
         
-        findCallChainsRecursive(startMethod, currentChain, visited, allChains, maxDepth, 0);
+        findCallChainsRecursive(startMethod, currentChain, visited, allChains, maxDepth, 0, stopAtLibraries);
         
         return allChains;
     }
     
     private void findCallChainsRecursive(String method, List<String> currentChain, 
                                          Set<String> visited, List<List<String>> allChains,
-                                         int maxDepth, int currentDepth) {
+                                         int maxDepth, int currentDepth, boolean stopAtLibraries) {
         if (currentDepth > maxDepth) {
             return;
         }
@@ -136,15 +185,17 @@ public class CallGraph {
         currentChain.add(method);
         visited.add(method);
         
-        List<String> callees = getCallees(method);
+        // Check if this is a library method (external boundary)
+        boolean isLibrary = stopAtLibraries && isLibraryMethod(method);
+        List<String> callees = isLibrary ? List.of() : getCallees(method);
         
-        if (callees.isEmpty() || currentDepth == maxDepth) {
-            // Leaf node or max depth reached - save this chain
+        if (callees.isEmpty() || currentDepth == maxDepth || isLibrary) {
+            // Leaf node, max depth reached, or library boundary - save this chain
             allChains.add(new ArrayList<>(currentChain));
         } else {
             // Continue exploring
             for (String callee : callees) {
-                findCallChainsRecursive(callee, currentChain, visited, allChains, maxDepth, currentDepth + 1);
+                findCallChainsRecursive(callee, currentChain, visited, allChains, maxDepth, currentDepth + 1, stopAtLibraries);
             }
         }
         
@@ -156,20 +207,30 @@ public class CallGraph {
     /**
      * Find all call chains from start method to a target method.
      * Useful for tracing how a specific method is reached.
+     * Stops at library boundaries by default.
      */
     public List<List<String>> findCallChainsToTarget(String startMethod, String targetMethod, int maxDepth) {
+        return findCallChainsToTarget(startMethod, targetMethod, maxDepth, true);
+    }
+    
+    /**
+     * Find all call chains from start method to a target method.
+     * @param stopAtLibraries if true, don't traverse into library methods
+     */
+    public List<List<String>> findCallChainsToTarget(String startMethod, String targetMethod, int maxDepth, boolean stopAtLibraries) {
         List<List<String>> allChains = new ArrayList<>();
         List<String> currentChain = new ArrayList<>();
         Set<String> visited = new HashSet<>();
         
-        findCallChainsToTargetRecursive(startMethod, targetMethod, currentChain, visited, allChains, maxDepth, 0);
+        findCallChainsToTargetRecursive(startMethod, targetMethod, currentChain, visited, allChains, maxDepth, 0, stopAtLibraries);
         
         return allChains;
     }
     
     private void findCallChainsToTargetRecursive(String method, String targetMethod,
                                                   List<String> currentChain, Set<String> visited,
-                                                  List<List<String>> allChains, int maxDepth, int currentDepth) {
+                                                  List<List<String>> allChains, int maxDepth, int currentDepth,
+                                                  boolean stopAtLibraries) {
         if (currentDepth > maxDepth) {
             return;
         }
@@ -186,11 +247,11 @@ public class CallGraph {
         // Check if we reached the target
         if (method.equals(targetMethod)) {
             allChains.add(new ArrayList<>(currentChain));
-        } else {
-            // Continue exploring
+        } else if (!stopAtLibraries || !isLibraryMethod(method)) {
+            // Continue exploring (unless we hit a library boundary)
             List<String> callees = getCallees(method);
             for (String callee : callees) {
-                findCallChainsToTargetRecursive(callee, targetMethod, currentChain, visited, allChains, maxDepth, currentDepth + 1);
+                findCallChainsToTargetRecursive(callee, targetMethod, currentChain, visited, allChains, maxDepth, currentDepth + 1, stopAtLibraries);
             }
         }
         

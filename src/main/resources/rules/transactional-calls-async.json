@@ -1,0 +1,33 @@
+{
+  "ruleId": "TRANSACTIONAL_CALLS_ASYNC",
+  "name": "Transactional Methods Should Not Call Async Methods",
+  "description": "Methods annotated with @Transactional should not call @Async methods because the async execution happens outside the transaction boundary. This can lead to data inconsistency if the async operation fails after the transaction commits.",
+  "severity": "WARN",
+  "query": {
+    "type": "graph_traversal",
+    "graph": "call_graph",
+    "pattern": {
+      "start": {
+        "annotation": "Transactional"
+      },
+      "traverse": {
+        "maxDepth": 3
+      },
+      "target": {
+        "mustNotReach": [
+          {
+            "annotation": "Async"
+          }
+        ]
+      }
+    }
+  },
+  "violation": {
+    "message": "@Transactional method '{method}' calls @Async method '{target}'. Async execution happens outside transaction boundary.",
+    "remediation": "1. Move @Async call outside the transaction, or 2. Use application events to trigger async processing after transaction commit, or 3. Use @TransactionalEventListener with AFTER_COMMIT phase."
+  },
+  "tags": ["transaction", "async", "spring", "data-consistency"],
+  "references": [
+    "https://docs.spring.io/spring-framework/docs/current/reference/html/data-access.html#transaction-event"
+  ]
+}
