@@ -1,27 +1,36 @@
 {
-  "ruleId": "TRANSACTION_BOUNDARY_VIOLATION",
+  "id": "TX-BOUNDARY-001",
+  "name": "No Remote Calls Inside Transaction",
+  "enabled": true,
   "severity": "BLOCKER",
-  "description": "Remote calls inside @Transactional methods",
-  "query": {
-    "type": "graph_traversal",
-    "graph": "call_graph",
-    "pattern": {
-      "start": {
-        "annotation": "Transactional",
-        "element": "method"
-      },
-      "traverse": {
-        "edge": "calls",
-        "maxDepth": 10
-      },
-      "target": {
-        "annotation": ["FeignClient", "RestTemplate", "WebClient"]
-      }
-    }
+  "confidence": "HIGH",
+  "description": "Remote calls inside @Transactional methods extend transaction time unnecessarily",
+  "target": {
+    "type": "ANNOTATED_METHOD",
+    "annotation": "Transactional"
   },
-  "violation": {
-    "message": "Method {method} makes remote call inside transaction",
-    "location": "callSite"
-  }
+"constraints": {
+  "mustNotInvokeAnnotatedMethods": [
+    "FeignClient",
+    "RestTemplate",
+    "WebClient"
+  ],
+  "maxCallDepth": 10
+},
+"rationale": {
+  "why": "Long-running network calls hold DB connections.",
+  "impact": "Connection pool exhaustion, performance degradation."
+  },
+"remediation": {
+  "summary": "Move remote call outside transaction.",
+  "options": [
+    "Fetch data before starting transaction",
+    "Process remote call after transaction commit"
+  ]
+},
+"tags": [
+  "transaction",
+  "performance",
+  "database"
+]
 }
-

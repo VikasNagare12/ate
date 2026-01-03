@@ -1,31 +1,33 @@
 {
-    "ruleId": "LAYERED_ARCHITECTURE_VIOLATION",
-    "severity": "ERROR",
-    "description": "Service layer must not depend on Web/Controller layer",
-    "query": {
-        "type": "graph_traversal",
-        "graph": "call_graph",
-        "pattern": {
-            "start": {
-                "element": "method",
-                "namePattern": ".*Service.*"
-            },
-            "traverse": {
-                "edge": "calls",
-                "maxDepth": 5
-            },
-            "target": {
-                "mustNotReach": [
-                    {
-                        "attribute": "name",
-                        "pattern": ".*Controller.*"
-                    }
-                ]
-            }
-        }
-    },
-    "violation": {
-        "message": "Service method {method} calls Controller method {target}",
-        "location": "method"
-    }
+"id": "LAYERED-ARCHITECTURE-001",
+"name": "Layered Architecture Violation",
+"enabled": true,
+"severity": "ERROR",
+"confidence": "HIGH",
+"description": "Service layer must not depend on Web/Controller layer",
+"target": {
+    "type": "NAME_PATTERN",
+    "namePattern": ".*Service.*"
+},
+"constraints": {
+    "mustNotDependOnPackages": [
+        ".*Controller.*"
+    ]
+},
+"rationale": {
+    "why": "Controllers should call Services, not the other way around.",
+    "impact": "Tight coupling, cyclic dependencies, hard to test services in isolation."
+},
+"remediation": {
+    "summary": "Remove dependency from Service to Controller.",
+    "options": [
+        "Move shared logic to a lower layer (e.g., Domain or Utility)",
+        "Use events to communicate upwards"
+    ]
+},
+"tags": [
+    "architecture",
+    "layering",
+    "clean-code"
+]
 }

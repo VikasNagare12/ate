@@ -3,7 +3,7 @@ package com.vidnyan.ate.rule;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vidnyan.ate.graph.CallGraph;
 import com.vidnyan.ate.graph.DependencyGraph;
-import com.vidnyan.ate.model.*;
+import com.vidnyan.ate.model.SourceModel;
 import com.vidnyan.ate.rule.evaluator.RuleEvaluator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +12,8 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Rule Engine - evaluates declarative rules against the Source Model.
@@ -25,6 +26,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class RuleEngine {
     
+    // State - Initialized via initialize()
     private SourceModel sourceModel;
     private CallGraph callGraph;
     private DependencyGraph dependencyGraph;
@@ -44,45 +46,64 @@ public class RuleEngine {
     /**
      * Load rules from JSON files.
      */
-    public List<RuleDefinition> loadRules(List<Path> ruleFiles) throws IOException {
-        List<RuleDefinition> rules = new ArrayList<>();
+    public List<RuleDefinition> loadRules(List<Path> ruleFiles) {
+        List<RuleDefinition> loadedRules = new ArrayList<>();
         for (Path ruleFile : ruleFiles) {
-            String json = Files.readString(ruleFile);
-            RuleDefinition rule = objectMapper.readValue(json, RuleDefinition.class);
-            rules.add(rule);
-            log.info("Loaded rule: {}", rule.getRuleId());
+            try {
+                String json = Files.readString(ruleFile);
+                RuleDefinition rule = objectMapper.readValue(json, RuleDefinition.class);
+                if (rule.isEnabled()) {
+                    loadedRules.add(rule);
+                    log.info("Loaded rule: {} - {}", rule.getId(), rule.getName());
+                } else {
+                    log.info("Skipping disabled rule: {}", rule.getId());
+                }
+            } catch (IOException e) {
+                log.error("Failed to load rule from file: {}", ruleFile, e);
+            }
         }
-        return rules;
+        return loadedRules;
     }
-    
+
     /**
      * Evaluate all rules and return violations.
      */
     public List<Violation> evaluateRules(List<RuleDefinition> rules) {
+        log.info("Evaluating {} rules...", rules.size());
         List<Violation> allViolations = new ArrayList<>();
-        
+
         for (RuleDefinition rule : rules) {
-            log.info("Evaluating rule: {}", rule.getRuleId());
             List<Violation> violations = evaluateRule(rule);
             allViolations.addAll(violations);
-            log.info("Found {} violations for rule {}", violations.size(), rule.getRuleId());
+            log.debug("Found {} violations for rule {}", violations.size(), rule.getId());
         }
-        
+
         return allViolations;
     }
-    
+
     /**
      * Evaluate a single rule using the appropriate evaluator.
      */
     private List<Violation> evaluateRule(RuleDefinition rule) {
-        return evaluators.stream()
-                .filter(evaluator -> evaluator.supports(rule))
-                .findFirst()
-                .map(evaluator -> evaluator.evaluate(rule, sourceModel, callGraph, dependencyGraph))
-                .orElseGet(() -> {
-                    log.warn("No evaluator found for rule type: {}", rule.getQuery().getType());
-                    return List.of();
-                });
+        // Find an evaluator that supports this rule
+        List<RuleEvaluator> capableEvaluators = evaluators.stream()
+                .filter(e -> e.supports(rule))
+                .toList();
+
+        if (capableEvaluators.isEmpty()) {
+            log.warn("No evaluator found for rule: {}. Skipping.", rule.getId());
+            return List.of();
+        }
+
+        List<Violation> violations = new ArrayList<>();
+        for (RuleEvaluator evaluator : capableEvaluators) {
+            try {
+                violations.addAll(evaluator.evaluate(rule, sourceModel, callGraph, dependencyGraph));
+            } catch (Exception e) {
+                log.error("Error evaluating rule {} with evaluator {}", rule.getId(),
+                        evaluator.getClass().getSimpleName(), e);
+            }
+        }
+        return violations;
     }
 }
-

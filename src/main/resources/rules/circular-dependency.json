@@ -1,17 +1,32 @@
 {
-  "ruleId": "CIRCULAR_DEPENDENCY",
+  "id": "CIRCULAR-DEPENDENCY-001",
+  "name": "Circular Dependency Detected",
+  "enabled": true,
   "severity": "ERROR",
-  "description": "Detect circular dependencies between packages",
-  "query": {
-    "type": "graph_traversal",
-    "graph": "dependency_graph",
-    "pattern": {
-      "detectCycles": true
-    }
+  "confidence": "HIGH",
+  "description": "Detects circular dependencies between packages or components",
+  "target": {
+    "type": "PACKAGE",
+    "packagePattern": ".*"
   },
-  "violation": {
-    "message": "Circular dependency detected: {cycle}",
-    "location": "package"
-  }
+  "constraints": {
+    "mustNotDependOnPackages": []
+  },
+  "rationale": {
+    "why": "Circular dependencies make the system tightly coupled and fragile.",
+    "impact": "Infinite recursion in construction, memory leaks, difficult refactoring."
+  },
+  "remediation": {
+    "summary": "Break the cycle.",
+    "options": [
+      "Use Dependency Inversion Principle (DIP)",
+      "extract shared interface",
+      "Event-driven architecture"
+    ]
+  },
+"tags": [
+  "architecture",
+  "dependency-graph",
+  "quality"
+]
 }
-
