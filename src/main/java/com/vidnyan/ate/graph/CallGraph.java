@@ -1,6 +1,5 @@
 package com.vidnyan.ate.graph;
 
-import com.vidnyan.ate.model.Method;
 import com.vidnyan.ate.model.Relationship;
 import com.vidnyan.ate.model.RelationshipType;
 import com.vidnyan.ate.model.SourceModel;

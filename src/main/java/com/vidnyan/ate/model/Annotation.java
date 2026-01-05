@@ -2,6 +2,7 @@ package com.vidnyan.ate.model;
 
 import lombok.Builder;
 import lombok.Value;
+
 import java.util.Map;
 
 /**

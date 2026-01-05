@@ -1,7 +1,6 @@
 package com.vidnyan.ate.advisor;
 
 import com.vidnyan.ate.report.ReportModel;
-import com.vidnyan.ate.rule.Severity;
 import com.vidnyan.ate.rule.Violation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

@@ -3,7 +3,6 @@ package com.vidnyan.ate.model.builder;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.AnnotationExpr;
-import com.github.javaparser.ast.nodeTypes.NodeWithModifiers;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.vidnyan.ate.model.*;
 import com.vidnyan.ate.model.Parameter;
