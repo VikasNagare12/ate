@@ -51,9 +51,6 @@ public class RuleDefinition {
     @JsonProperty("target")
     Target target;
 
-    @JsonProperty("constraints")
-    Constraints constraints;
-    
     // -- Context & Remediation -- //
 
     @JsonProperty("rationale")
@@ -61,9 +58,6 @@ public class RuleDefinition {
 
     @JsonProperty("remediation")
     Remediation remediation;
-
-    @JsonProperty("tags")
-    List<String> tags;
 
     /**
      * Defines the scope where the rule applies.
@@ -92,29 +86,6 @@ public class RuleDefinition {
         NAME_PATTERN,
         PACKAGE,
         ALL_METHODS
-    }
-
-    /**
-     * Defines the invariants that must hold true for the target.
-     */
-    @Value
-    @Builder
-    @Jacksonized
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class Constraints {
-        // Interaction Constraints
-        List<String> mustNotInvokeAnnotatedMethods;
-        List<String> mustInvokeAnnotatedMethods;
-        List<String> mustNotInvokeMethodsMatching;
-        List<String> mustInvokeMethodsMatching;
-
-        // Structural Constraints
-        List<String> mustNotDependOnPackages;
-        List<String> mustDependOnPackages;
-
-        // Metric Constraints
-        Integer maxCallDepth;
-        Integer maxTransactionDepth;
     }
 
     /**

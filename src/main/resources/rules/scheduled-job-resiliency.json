@@ -9,13 +9,6 @@
     "type": "ANNOTATED_METHOD",
     "annotation": "Scheduled"
   },
-"constraints": {
-  "mustInvokeAnnotatedMethods": [
-    "Retryable",
-    "CircuitBreaker",
-    "Resilience4j"
-  ]
-},
 "rationale": {
   "why": "Background jobs fail silently or crash the scheduler thread.",
   "impact": "Job hangs, data staleness."
@@ -26,10 +19,5 @@
     "Add @Retryable on the scheduled method",
     "Wrap logic in CircuitBreaker"
   ]
-  },
-"tags": [
-  "scheduled",
-  "resilience",
-  "robustness"
-]
+  }
 }

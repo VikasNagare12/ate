@@ -6,13 +6,8 @@
 "confidence": "HIGH",
 "description": "Service layer must not depend on Web/Controller layer",
 "target": {
-    "type": "NAME_PATTERN",
-    "namePattern": ".*Service.*"
-},
-"constraints": {
-    "mustNotDependOnPackages": [
-        ".*Controller.*"
-    ]
+    "artifactType": "Method",
+    "namePattern": ".*service\\..*"
 },
 "rationale": {
     "why": "Controllers should call Services, not the other way around.",
@@ -24,10 +19,5 @@
         "Move shared logic to a lower layer (e.g., Domain or Utility)",
         "Use events to communicate upwards"
     ]
-},
-"tags": [
-    "architecture",
-    "layering",
-    "clean-code"
-]
+}
 }

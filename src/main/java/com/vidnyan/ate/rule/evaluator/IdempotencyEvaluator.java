@@ -51,11 +51,9 @@ public class IdempotencyEvaluator implements RuleEvaluator {
         
         List<Method> retryableMethods = sourceModel.getMethodsAnnotatedWith(RETRYABLE);
         
-        List<String> patterns = rule.getConstraints() != null && rule.getConstraints().getMustNotInvokeMethodsMatching() != null 
-                ? rule.getConstraints().getMustNotInvokeMethodsMatching()
-                : DEFAULT_NON_IDEMPOTENT_PATTERNS;
-                
-        List<Pattern> compiledPatterns = patterns.stream().map(Pattern::compile).toList();
+        List<Pattern> compiledPatterns = DEFAULT_NON_IDEMPOTENT_PATTERNS.stream()
+                .map(Pattern::compile)
+                .toList();
 
         for (Method method : retryableMethods) {
             Set<String> reachableMethods = callGraph.findReachableMethods(method.getFullyQualifiedName());

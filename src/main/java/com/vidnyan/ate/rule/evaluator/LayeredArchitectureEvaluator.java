@@ -40,20 +40,9 @@ public class LayeredArchitectureEvaluator implements RuleEvaluator {
     public List<Violation> evaluate(RuleDefinition rule, SourceModel sourceModel, CallGraph callGraph, DependencyGraph dependencyGraph) {
         List<Violation> violations = new ArrayList<>();
         
-        // Extract patterns from rule definition or fall back to defaults
-        String sourcePatternStr = rule.getTarget() != null && rule.getTarget().getNamePattern() != null 
-                ? rule.getTarget().getNamePattern() : SERVICE_PATTERN;
-        
-        List<String> forbiddenPackagePatterns = rule.getConstraints() != null 
-                && rule.getConstraints().getMustNotDependOnPackages() != null
-                ? rule.getConstraints().getMustNotDependOnPackages()
-                : List.of(CONTROLLER_PATTERN); // Fallback logic or assume misconfig?
-
-        Pattern sourcePattern = Pattern.compile(sourcePatternStr);
-        // We'll treat the forbidden constraint as a regex for class/package names
-        List<Pattern> forbiddenPatterns = forbiddenPackagePatterns.stream()
-                .map(Pattern::compile)
-                .toList();
+        // Hardcoded patterns enforcing strict architecture
+        Pattern sourcePattern = Pattern.compile(SERVICE_PATTERN);
+        List<Pattern> forbiddenPatterns = List.of(Pattern.compile(CONTROLLER_PATTERN));
 
         log.debug("Checking Layered Architecture: {} must not reach {}", sourcePattern, forbiddenPatterns);
 

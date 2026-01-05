@@ -9,11 +9,6 @@
     "type": "ANNOTATED_METHOD",
     "annotation": "Transactional"
   },
-"constraints": {
-  "mustNotInvokeAnnotatedMethods": [
-    "Transactional"
-  ]
-},
 "rationale": {
   "why": "Default propagation (REQUIRED) uses the same transaction. Unexpected rollbacks can occur if inner method fails.",
   "impact": "Unintended rollback of outer transaction, lack of isolation."
@@ -24,10 +19,5 @@
     "Use REQUIRES_NEW for independent transactions",
     "Flatten transaction boundaries"
   ]
-  },
-"tags": [
-  "transaction",
-  "propagation",
-  "spring"
-]
+  }
 }

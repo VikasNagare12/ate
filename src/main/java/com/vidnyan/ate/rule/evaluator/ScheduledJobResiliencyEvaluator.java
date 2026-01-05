@@ -49,9 +49,7 @@ public class ScheduledJobResiliencyEvaluator implements RuleEvaluator {
         
         List<Method> scheduledMethods = sourceModel.getMethodsAnnotatedWith(SCHEDULED);
         
-        List<String> resilienceAnnotations = rule.getConstraints() != null && rule.getConstraints().getMustInvokeAnnotatedMethods() != null
-                ? rule.getConstraints().getMustInvokeAnnotatedMethods()
-                : DEFAULT_RESILIENCE_ANNOTATIONS;
+        List<String> resilienceAnnotations = DEFAULT_RESILIENCE_ANNOTATIONS;
 
 
         for (Method method : scheduledMethods) {

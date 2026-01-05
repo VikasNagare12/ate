@@ -6,18 +6,19 @@
   "confidence": "MEDIUM",
   "description": "Methods annotated with @Retryable should not call non-idempotent operations",
   "target": {
-    "type": "ANNOTATED_METHOD",
-    "annotation": "Retryable"
+    "artifactType": "Method",
+    "annotationPattern": "Retryable"
   },
-"constraints": {
-  "mustNotInvokeMethodsMatching": [
-    ".*EmailService.*send.*",
-    ".*PaymentService.*charge.*",
-    ".*NotificationService.*notify.*",
-    ".*MessageProducer.*send.*"
-  ]
-},
-"rationale": {
+  "constraints": {
+    "mustNotInvokeMethodsMatching": [
+      "(?i).*charge.*",
+      "(?i).*pay.*",
+      "(?i).*send.*",
+      "(?i).*create.*",
+      "(?i).*insert.*"
+    ]
+  },
+  "rationale": {
   "why": "Retries can cause duplicate operations if not idempotent.",
   "impact": "Double charging, spam emails, duplicate messages."
 },
@@ -27,10 +28,5 @@
     "Add deduplication keys",
     "Move side-effects out of retry block"
   ]
-  },
-"tags": [
-  "retry",
-  "idempotency",
-  "resilience"
-]
+  }
 }

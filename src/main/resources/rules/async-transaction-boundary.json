@@ -5,16 +5,11 @@
   "severity": "ERROR",
   "confidence": "HIGH",
   "description": "Methods annotated with @Async must not invoke methods annotated with @Transactional",
-  "target": {
-    "type": "ANNOTATED_METHOD",
-    "annotation": "Async"
-  },
-"constraints": {
-  "mustNotInvokeAnnotatedMethods": [
-    "Transactional"
-  ]
-},
-"rationale": {
+    "target": {
+      "artifactType": "Method",
+      "annotationPattern": "Async"
+    },
+    "rationale": {
   "why": "Transaction context is not propagated to async threads",
   "impact": "LazyInitializationException, partial commits, data inconsistency"
   },
@@ -25,11 +20,5 @@
     "Move @Async after transaction completes",
     "Use TransactionTemplate in async execution"
   ]
-  },
-"tags": [
-  "transaction",
-  "async",
-  "spring",
-  "concurrency"
-]
+  }
 }

@@ -59,11 +59,7 @@ public class TransactionBoundaryEvaluator implements RuleEvaluator {
         // But for FeignClient, the interface method is annotated with
         // GetMapping/PostMapping usually, but the INTERFACE is @FeignClient.
 
-        List<String> forbiddenAnnotations = rule.getConstraints() != null
-                && rule.getConstraints().getMustNotInvokeAnnotatedMethods() != null
-                        ? rule.getConstraints().getMustNotInvokeAnnotatedMethods()
-                        : DEFAULT_REMOTE_ANNOTATIONS; // "FeignClient" logic needs special handling for TYPE vs METHOD
-                                                      // annotation
+        List<String> forbiddenAnnotations = DEFAULT_REMOTE_ANNOTATIONS;
 
 
         for (Method txMethod : txMethods) {

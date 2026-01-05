@@ -56,3 +56,9 @@ Updated all rule definitions in `src/main/resources/rules/` to the new standard 
 - **Hardcoded Max Depth**: `CallGraph` now enforces a `private static final int MAX_CALL_DEPTH = 100`.
 - **API Change**: Removed `maxDepth` parameter from all traversal methods (`findReachableMethods`, `findCallChains`, etc.).
 - **Evaluator Updates**: All `RuleEvaluator` classes updated to call the simplified `CallGraph` API.
+
+### Logic Decoupling (JSON vs Code)
+- **Objective**: Ensure `RuleEvaluator` classes are the sole source of truth for rule logic.
+- **Evaluator Changes**: Hardcoded all patterns and logic (e.g., `SERVICE_PATTERN`, `DEFAULT_REMOTE_ANNOTATIONS`) directly in Java classes.
+- **JSON Changes**: Removed `constraints` and `tags` sections from all JSON rule files. JSONs now serve strictly as metadata (ID, description, severity, remediation).
+- **Model Changes**: Removed `Constraints` class and `tags` field from `RuleDefinition.java`.

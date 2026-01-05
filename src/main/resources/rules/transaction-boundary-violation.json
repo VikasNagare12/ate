@@ -9,13 +9,6 @@
     "type": "ANNOTATED_METHOD",
     "annotation": "Transactional"
   },
-"constraints": {
-  "mustNotInvokeAnnotatedMethods": [
-    "FeignClient",
-    "RestTemplate",
-    "WebClient"
-  ]
-},
 "rationale": {
   "why": "Long-running network calls hold DB connections.",
   "impact": "Connection pool exhaustion, performance degradation."
@@ -26,10 +19,5 @@
     "Fetch data before starting transaction",
     "Process remote call after transaction commit"
   ]
-},
-"tags": [
-  "transaction",
-  "performance",
-  "database"
-]
+}
 }

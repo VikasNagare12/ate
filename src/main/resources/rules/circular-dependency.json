@@ -7,10 +7,7 @@
   "description": "Detects circular dependencies between packages or components",
   "target": {
     "type": "PACKAGE",
-    "packagePattern": ".*"
-  },
-  "constraints": {
-    "mustNotDependOnPackages": []
+    "artifactType": "Package"
   },
   "rationale": {
     "why": "Circular dependencies make the system tightly coupled and fragile.",
@@ -23,10 +20,5 @@
       "extract shared interface",
       "Event-driven architecture"
     ]
-  },
-"tags": [
-  "architecture",
-  "dependency-graph",
-  "quality"
-]
+  }
 }

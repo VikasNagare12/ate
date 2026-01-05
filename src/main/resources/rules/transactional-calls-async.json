@@ -6,8 +6,8 @@
   "confidence": "MEDIUM",
   "description": "Methods annotated with @Transactional should not call @Async methods",
   "target": {
-    "type": "ANNOTATED_METHOD",
-    "annotation": "Transactional"
+    "artifactType": "Method",
+    "annotationPattern": "Transactional"
   },
 "constraints": {
   "mustNotInvokeAnnotatedMethods": [
@@ -24,10 +24,5 @@
     "Move @Async call outside the transaction",
     "Use application events (TransactionalEventListener)"
   ]
-  },
-"tags": [
-  "transaction",
-  "async",
-  "spring"
-]
+  }
 }
