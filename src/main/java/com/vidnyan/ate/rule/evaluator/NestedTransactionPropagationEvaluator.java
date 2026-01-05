@@ -15,23 +15,22 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Enforces rule: @Transactional methods should not call @Async methods.
- * (TRANSACTIONAL_CALLS_ASYNC)
+ * Enforces rule: Nested Transaction Propagation.
+ * (NESTED-TX-PROPAGATION-001)
  * <p>
- * Async execution happens in a separate thread, meaning the transaction context
- * is lost. If the async task fails, the transaction will not roll back,
- * leading to partial commits or inconsistency.
+ * Detects when a @Transactional method calls another @Transactional method.
+ * Default propagation (REQUIRED) merges them into one transaction, which might
+ * not be intended.
  * </p>
  */
 @Slf4j
 @Component
-public class TransactionalCallsAsyncEvaluator implements RuleEvaluator {
+public class NestedTransactionPropagationEvaluator implements RuleEvaluator {
 
-    private static final String ID = "TRANSACTIONAL-CALLS-ASYNC"; // Standardized ID
-    private static final String ID_LEGACY = "TRANSACTIONAL_CALLS_ASYNC"; // Handle legacy ID if needed or just enforcement
-    
+    private static final String ID = "NESTED-TX-PROPAGATION-001";
+    private static final String ID_LEGACY = "NESTED_TRANSACTION_PROPAGATION";
+
     private static final String TRANSACTIONAL = "Transactional";
-    private static final String ASYNC = "Async";
 
     @Override
     public boolean supports(RuleDefinition rule) {
@@ -39,42 +38,51 @@ public class TransactionalCallsAsyncEvaluator implements RuleEvaluator {
     }
 
     @Override
-    public List<Violation> evaluate(RuleDefinition rule, SourceModel sourceModel, CallGraph callGraph, DependencyGraph dependencyGraph) {
+    public List<Violation> evaluate(RuleDefinition rule, SourceModel sourceModel, CallGraph callGraph,
+            DependencyGraph dependencyGraph) {
         List<Violation> violations = new ArrayList<>();
-        
+
         List<Method> txMethods = sourceModel.getMethodsAnnotatedWith(TRANSACTIONAL);
 
         for (Method txMethod : txMethods) {
             Set<String> reachable = callGraph.findReachableMethods(txMethod.getFullyQualifiedName());
-            
+
             for (String targetName : reachable) {
+                // Avoid self-reference if needed, though recursive calls are also nested
+                // transactions.
+                if (targetName.equals(txMethod.getFullyQualifiedName())) {
+                    continue;
+                }
+
                 Method target = sourceModel.getMethod(targetName);
-                if (target != null && target.hasAnnotation(ASYNC)) {
-                    
-                     List<List<String>> chains = callGraph.findCallChainsToTarget(
+                if (target != null && target.hasAnnotation(TRANSACTIONAL)) {
+
+                    List<List<String>> chains = callGraph.findCallChainsToTarget(
                             txMethod.getFullyQualifiedName(),
-                             target.getFullyQualifiedName()
-                    );
+                            target.getFullyQualifiedName());
                     String chainDisplay = chains.isEmpty() ? "Direct call" : CallGraph.formatCallChain(chains.get(0));
 
                     violations.add(Violation.builder()
                             .ruleId(rule.getId())
                             .severity(rule.getSeverity())
-                            .message(String.format("@Transactional method '%s' invokes @Async method '%s'. Context loss risk.", 
+                            .message(String.format(
+                                    "Nested transaction detected: '%s' -> '%s'. Verify propagation behavior.",
                                     txMethod.getName(), target.getName()))
                             .location(txMethod.getLocation())
                             .context(Map.of(
                                     "source", txMethod.getFullyQualifiedName(),
                                     "target", target.getFullyQualifiedName(),
                                     "callChain", chainDisplay,
-                                    "remediation", rule.getRemediation() != null ? rule.getRemediation().getSummary() : "Use event listener or explicit context propagation."
-                            ))
-                            .fingerprint(Violation.generateFingerprint(ID, txMethod.getLocation(), Map.of("target", target.getFullyQualifiedName())))
+                                    "remediation",
+                                    rule.getRemediation() != null ? rule.getRemediation().getSummary()
+                                            : "Check propagation."))
+                            .fingerprint(Violation.generateFingerprint(ID, txMethod.getLocation(),
+                                    Map.of("target", target.getFullyQualifiedName())))
                             .build());
                 }
             }
         }
-        
+
         return violations;
     }
 }

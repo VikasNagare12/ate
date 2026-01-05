@@ -29,7 +29,7 @@ public class AsyncTransactionBoundaryEvaluator implements RuleEvaluator {
     private static final String ID = "ASYNC-TX-BOUNDARY-001";
     private static final String ASYNC_ANNOTATION = "Async";
     private static final String TRANSACTIONAL_ANNOTATION = "Transactional";
-    private static final int DEFAULT_MAX_DEPTH = 5;
+
 
     @Override
     public boolean supports(RuleDefinition rule) {
@@ -44,15 +44,12 @@ public class AsyncTransactionBoundaryEvaluator implements RuleEvaluator {
         List<Method> asyncMethods = sourceModel.getMethodsAnnotatedWith(ASYNC_ANNOTATION);
         log.debug("Evaluating {} rule on {} @Async methods", ID, asyncMethods.size());
 
-        int maxDepth = rule.getConstraints() != null && rule.getConstraints().getMaxCallDepth() != null
-                ? rule.getConstraints().getMaxCallDepth()
-                : DEFAULT_MAX_DEPTH;
+
 
         for (Method asyncMethod : asyncMethods) {
             // 2. Traverse: Look for downstream calls
             Set<String> reachableMethods = callGraph.findReachableMethods(
-                    asyncMethod.getFullyQualifiedName(), 
-                    maxDepth
+                    asyncMethod.getFullyQualifiedName()
             );
 
             // 3. Inspect: Check if any reachable method is @Transactional
@@ -63,8 +60,7 @@ public class AsyncTransactionBoundaryEvaluator implements RuleEvaluator {
                     // 4. Report Violation
                     List<List<String>> chains = callGraph.findCallChainsToTarget(
                             asyncMethod.getFullyQualifiedName(),
-                            reachedMethod.getFullyQualifiedName(),
-                            maxDepth
+                            reachedMethod.getFullyQualifiedName()
                     );
 
                     String chainDisplay = chains.isEmpty() ? "Direct call" : CallGraph.formatCallChain(chains.get(0));

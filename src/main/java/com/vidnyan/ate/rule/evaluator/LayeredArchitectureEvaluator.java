@@ -67,7 +67,7 @@ public class LayeredArchitectureEvaluator implements RuleEvaluator {
 
         // 2. Check each source method for forbidden calls
         for (Method method : sourceMethods) {
-            Set<String> reachableMethods = callGraph.findReachableMethods(method.getFullyQualifiedName(), 5);
+                Set<String> reachableMethods = callGraph.findReachableMethods(method.getFullyQualifiedName());
 
             for (String reached : reachableMethods) {
                 // Check if reached method matches any forbidden pattern (e.g. is in a Controller)

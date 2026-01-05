@@ -42,3 +42,17 @@ Updated all rule definitions in `src/main/resources/rules/` to the new standard 
 - **Explicit Ownership**: Each rule logic is now in its own Java class.
 - **Type Safety**: No more generic string parsing in a single massive evaluator.
 - **Schema Strictness**: JSONs now must match the `RuleDefinition` POJO structure.
+
+### Standardization (Max Call Depth)
+- **Modified** `CallGraph`: Added error logging if recursion depth exceeds 100.
+- **Modified** All Rule Evaluators: Standardized `maxCallDepth` to a constant `100` (removed per-rule configuration logic).
+- **Modified** All JSON Rules: Removed `"maxCallDepth"` field to enforce global standard.
+
+### Additional Rules Implemented
+1. `NestedTransactionPropagationEvaluator` (`NESTED-TX-PROPAGATION-001`): Detects nested transactional calls.
+2. Standardized `async-transaction-boundary.json` and `nested-transaction-propagation.json` to v2 schema.
+
+### CallGraph Refactoring
+- **Hardcoded Max Depth**: `CallGraph` now enforces a `private static final int MAX_CALL_DEPTH = 100`.
+- **API Change**: Removed `maxDepth` parameter from all traversal methods (`findReachableMethods`, `findCallChains`, etc.).
+- **Evaluator Updates**: All `RuleEvaluator` classes updated to call the simplified `CallGraph` API.

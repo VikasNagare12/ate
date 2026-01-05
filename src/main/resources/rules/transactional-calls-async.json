@@ -12,8 +12,7 @@
 "constraints": {
   "mustNotInvokeAnnotatedMethods": [
     "Async"
-  ],
-  "maxCallDepth": 3
+  ]
 },
 "rationale": {
   "why": "Async execution happens happening outside the transaction boundary.",

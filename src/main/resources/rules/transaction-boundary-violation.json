@@ -14,8 +14,7 @@
     "FeignClient",
     "RestTemplate",
     "WebClient"
-  ],
-  "maxCallDepth": 10
+  ]
 },
 "rationale": {
   "why": "Long-running network calls hold DB connections.",

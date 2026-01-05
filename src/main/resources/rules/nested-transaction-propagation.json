@@ -1,33 +1,33 @@
 {
-  "ruleId": "NESTED_TRANSACTION_PROPAGATION",
+  "id": "NESTED-TX-PROPAGATION-001",
   "name": "Nested Transactional Methods May Cause Unexpected Behavior",
-  "description": "When a @Transactional method calls another @Transactional method, the propagation behavior determines if a new transaction is created or the existing one is used. Default REQUIRED propagation means both methods share the same transaction, which may not be the intended behavior.",
+  "enabled": true,
   "severity": "WARN",
-  "query": {
-    "type": "graph_traversal",
-    "graph": "call_graph",
-    "pattern": {
-      "start": {
-        "annotation": "Transactional"
-      },
-      "traverse": {
-        "maxDepth": 3
-      },
-      "target": {
-        "mustNotReach": [
-          {
-            "annotation": "Transactional"
-          }
-        ]
-      }
-    }
+  "confidence": "MEDIUM",
+  "description": "When a @Transactional method calls another @Transactional method, verify propagation behavior.",
+  "target": {
+    "type": "ANNOTATED_METHOD",
+    "annotation": "Transactional"
   },
-  "violation": {
-    "message": "@Transactional method '{method}' calls another @Transactional method '{target}'. Review propagation behavior.",
-    "remediation": "1. If nested transaction is intended, explicitly set propagation=REQUIRES_NEW on inner method, or 2. If same transaction is intended, document this behavior, or 3. Consider extracting shared logic to avoid nested transactions."
-  },
-  "tags": ["transaction", "propagation", "spring", "nested-transactions"],
-  "references": [
-    "https://docs.spring.io/spring-framework/docs/current/reference/html/data-access.html#tx-propagation"
+"constraints": {
+  "mustNotInvokeAnnotatedMethods": [
+    "Transactional"
   ]
+},
+"rationale": {
+  "why": "Default propagation (REQUIRED) uses the same transaction. Unexpected rollbacks can occur if inner method fails.",
+  "impact": "Unintended rollback of outer transaction, lack of isolation."
+  },
+"remediation": {
+  "summary": "Verify propagation strategy.",
+  "options": [
+    "Use REQUIRES_NEW for independent transactions",
+    "Flatten transaction boundaries"
+  ]
+  },
+"tags": [
+  "transaction",
+  "propagation",
+  "spring"
+]
 }

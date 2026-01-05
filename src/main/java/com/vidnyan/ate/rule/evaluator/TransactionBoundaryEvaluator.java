@@ -66,12 +66,9 @@ public class TransactionBoundaryEvaluator implements RuleEvaluator {
                         : DEFAULT_REMOTE_ANNOTATIONS; // "FeignClient" logic needs special handling for TYPE vs METHOD
                                                       // annotation
 
-        int maxDepth = rule.getConstraints() != null && rule.getConstraints().getMaxCallDepth() != null
-                ? rule.getConstraints().getMaxCallDepth()
-                : 5;
 
         for (Method txMethod : txMethods) {
-            Set<String> reachable = callGraph.findReachableMethods(txMethod.getFullyQualifiedName(), maxDepth);
+                Set<String> reachable = callGraph.findReachableMethods(txMethod.getFullyQualifiedName());
 
             for (String reachedName : reachable) {
                 Method reached = sourceModel.getMethod(reachedName);
@@ -84,8 +81,7 @@ public class TransactionBoundaryEvaluator implements RuleEvaluator {
                     if (isRemote) {
                         List<List<String>> chains = callGraph.findCallChainsToTarget(
                                 txMethod.getFullyQualifiedName(),
-                                reachedName,
-                                maxDepth);
+                                        reachedName);
                         String chainDisplay = chains.isEmpty() ? "Direct call"
                                 : CallGraph.formatCallChain(chains.get(0));
 

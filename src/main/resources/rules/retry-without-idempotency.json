@@ -15,8 +15,7 @@
     ".*PaymentService.*charge.*",
     ".*NotificationService.*notify.*",
     ".*MessageProducer.*send.*"
-  ],
-  "maxCallDepth": 5
+  ]
 },
 "rationale": {
   "why": "Retries can cause duplicate operations if not idempotent.",

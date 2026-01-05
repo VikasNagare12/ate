@@ -13,8 +13,9 @@
   },
 
   "constraints": {
-    "mustNotInvokeAnnotatedMethods": ["Transactional"],
-    "maxCallDepth": 5
+    "mustNotInvokeAnnotatedMethods": [
+      "Transactional"
+    ]
   },
 
   "rationale": {

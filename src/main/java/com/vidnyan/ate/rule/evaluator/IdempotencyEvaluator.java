@@ -56,11 +56,9 @@ public class IdempotencyEvaluator implements RuleEvaluator {
                 : DEFAULT_NON_IDEMPOTENT_PATTERNS;
                 
         List<Pattern> compiledPatterns = patterns.stream().map(Pattern::compile).toList();
-        int maxDepth = rule.getConstraints() != null && rule.getConstraints().getMaxCallDepth() != null 
-                ? rule.getConstraints().getMaxCallDepth() : 5;
 
         for (Method method : retryableMethods) {
-            Set<String> reachableMethods = callGraph.findReachableMethods(method.getFullyQualifiedName(), maxDepth);
+            Set<String> reachableMethods = callGraph.findReachableMethods(method.getFullyQualifiedName());
             
             for (String reached : reachableMethods) {
                 boolean isNonIdempotent = compiledPatterns.stream().anyMatch(p -> p.matcher(reached).matches());
@@ -68,8 +66,7 @@ public class IdempotencyEvaluator implements RuleEvaluator {
                 if (isNonIdempotent) {
                     List<List<String>> chains = callGraph.findCallChainsToTarget(
                             method.getFullyQualifiedName(),
-                            reached,
-                            maxDepth
+                            reached
                     );
                     String chainDisplay = chains.isEmpty() ? "Direct call" : CallGraph.formatCallChain(chains.get(0));
 

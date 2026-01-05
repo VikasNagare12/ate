@@ -6,6 +6,7 @@ import com.vidnyan.ate.model.RelationshipType;
 import com.vidnyan.ate.model.SourceModel;
 import lombok.Builder;
 import lombok.Value;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
 
@@ -13,6 +14,7 @@ import java.util.*;
  * Precomputed call graph for efficient traversal.
  * Bidirectional index: caller → callees, callee → callers.
  */
+@Slf4j
 @Value
 @Builder
 public class CallGraph {
@@ -104,26 +106,32 @@ public class CallGraph {
                 .toList();
     }
     
+    private static final int MAX_CALL_DEPTH = 100;
+
     /**
      * Find all methods reachable from a start method (transitive closure).
      * Stops at library boundaries by default.
      */
-    public Set<String> findReachableMethods(String startMethod, int maxDepth) {
-        return findReachableMethods(startMethod, maxDepth, true);
+    public Set<String> findReachableMethods(String startMethod) {
+        return findReachableMethods(startMethod, true);
     }
     
     /**
      * Find all methods reachable from a start method (transitive closure).
      * @param stopAtLibraries if true, don't traverse into library methods
      */
-    public Set<String> findReachableMethods(String startMethod, int maxDepth, boolean stopAtLibraries) {
+    public Set<String> findReachableMethods(String startMethod, boolean stopAtLibraries) {
         Set<String> visited = new HashSet<>();
         Queue<DepthNode> queue = new LinkedList<>();
         queue.add(new DepthNode(startMethod, 0));
         
         while (!queue.isEmpty()) {
             DepthNode node = queue.poll();
-            if (node.depth > maxDepth || visited.contains(node.method)) {
+            if (node.depth > MAX_CALL_DEPTH) {
+                log.error("Max call depth {} exceeded while traversing from {}", MAX_CALL_DEPTH, startMethod);
+                continue;
+            }
+            if (visited.contains(node.method)) {
                 continue;
             }
             visited.add(node.method);
@@ -151,28 +159,30 @@ public class CallGraph {
      * Stops at library boundaries - e.g., a→b→c→JdbcTemplate.query() stops at JdbcTemplate.
      * Example: [["a", "b", "c"], ["a", "b", "d"], ["a", "e"]]
      */
-    public List<List<String>> findCallChains(String startMethod, int maxDepth) {
-        return findCallChains(startMethod, maxDepth, true);
+    public List<List<String>> findCallChains(String startMethod) {
+        return findCallChains(startMethod, true);
     }
     
     /**
      * Find all call chains (execution paths) from a start method.
      * @param stopAtLibraries if true, treat library methods as leaf nodes
      */
-    public List<List<String>> findCallChains(String startMethod, int maxDepth, boolean stopAtLibraries) {
+    public List<List<String>> findCallChains(String startMethod, boolean stopAtLibraries) {
         List<List<String>> allChains = new ArrayList<>();
         List<String> currentChain = new ArrayList<>();
         Set<String> visited = new HashSet<>();
         
-        findCallChainsRecursive(startMethod, currentChain, visited, allChains, maxDepth, 0, stopAtLibraries);
+        findCallChainsRecursive(startMethod, currentChain, visited, allChains, 0, stopAtLibraries);
         
         return allChains;
     }
     
     private void findCallChainsRecursive(String method, List<String> currentChain, 
                                          Set<String> visited, List<List<String>> allChains,
-                                         int maxDepth, int currentDepth, boolean stopAtLibraries) {
-        if (currentDepth > maxDepth) {
+            int currentDepth, boolean stopAtLibraries) {
+        if (currentDepth > MAX_CALL_DEPTH) {
+            log.error("Max call depth {} exceeded while tracing from {}", MAX_CALL_DEPTH,
+                    currentChain.isEmpty() ? method : currentChain.get(0));
             return;
         }
         
@@ -189,13 +199,13 @@ public class CallGraph {
         boolean isLibrary = stopAtLibraries && isLibraryMethod(method);
         List<String> callees = isLibrary ? List.of() : getCallees(method);
         
-        if (callees.isEmpty() || currentDepth == maxDepth || isLibrary) {
+        if (callees.isEmpty() || currentDepth == MAX_CALL_DEPTH || isLibrary) {
             // Leaf node, max depth reached, or library boundary - save this chain
             allChains.add(new ArrayList<>(currentChain));
         } else {
             // Continue exploring
             for (String callee : callees) {
-                findCallChainsRecursive(callee, currentChain, visited, allChains, maxDepth, currentDepth + 1, stopAtLibraries);
+                findCallChainsRecursive(callee, currentChain, visited, allChains, currentDepth + 1, stopAtLibraries);
             }
         }
         
@@ -209,29 +219,32 @@ public class CallGraph {
      * Useful for tracing how a specific method is reached.
      * Stops at library boundaries by default.
      */
-    public List<List<String>> findCallChainsToTarget(String startMethod, String targetMethod, int maxDepth) {
-        return findCallChainsToTarget(startMethod, targetMethod, maxDepth, true);
+    public List<List<String>> findCallChainsToTarget(String startMethod, String targetMethod) {
+        return findCallChainsToTarget(startMethod, targetMethod, true);
     }
     
     /**
      * Find all call chains from start method to a target method.
      * @param stopAtLibraries if true, don't traverse into library methods
      */
-    public List<List<String>> findCallChainsToTarget(String startMethod, String targetMethod, int maxDepth, boolean stopAtLibraries) {
+    public List<List<String>> findCallChainsToTarget(String startMethod, String targetMethod, boolean stopAtLibraries) {
         List<List<String>> allChains = new ArrayList<>();
         List<String> currentChain = new ArrayList<>();
         Set<String> visited = new HashSet<>();
         
-        findCallChainsToTargetRecursive(startMethod, targetMethod, currentChain, visited, allChains, maxDepth, 0, stopAtLibraries);
+        findCallChainsToTargetRecursive(startMethod, targetMethod, currentChain, visited, allChains, 0,
+                stopAtLibraries);
         
         return allChains;
     }
     
     private void findCallChainsToTargetRecursive(String method, String targetMethod,
                                                   List<String> currentChain, Set<String> visited,
-                                                  List<List<String>> allChains, int maxDepth, int currentDepth,
-                                                  boolean stopAtLibraries) {
-        if (currentDepth > maxDepth) {
+            List<List<String>> allChains, int currentDepth,
+                                                          boolean stopAtLibraries) {
+        if (currentDepth > MAX_CALL_DEPTH) {
+            log.error("Max call depth {} exceeded while tracing from {} to {}", MAX_CALL_DEPTH, currentChain.get(0),
+                    targetMethod);
             return;
         }
         
@@ -251,7 +264,8 @@ public class CallGraph {
             // Continue exploring (unless we hit a library boundary)
             List<String> callees = getCallees(method);
             for (String callee : callees) {
-                findCallChainsToTargetRecursive(callee, targetMethod, currentChain, visited, allChains, maxDepth, currentDepth + 1, stopAtLibraries);
+                findCallChainsToTargetRecursive(callee, targetMethod, currentChain, visited, allChains,
+                        currentDepth + 1, stopAtLibraries);
             }
         }
         
@@ -264,11 +278,11 @@ public class CallGraph {
      * Find transaction boundaries - traces all call chains from @Transactional methods.
      * This helps identify transaction propagation paths.
      */
-    public Map<String, List<List<String>>> findTransactionBoundaries(Set<String> transactionalMethods, int maxDepth) {
+    public Map<String, List<List<String>>> findTransactionBoundaries(Set<String> transactionalMethods) {
         Map<String, List<List<String>>> transactionChains = new HashMap<>();
         
         for (String txMethod : transactionalMethods) {
-            List<List<String>> chains = findCallChains(txMethod, maxDepth);
+            List<List<String>> chains = findCallChains(txMethod);
             if (!chains.isEmpty()) {
                 transactionChains.put(txMethod, chains);
             }

@@ -14,8 +14,7 @@
     "Retryable",
     "CircuitBreaker",
     "Resilience4j"
-  ],
-  "maxCallDepth": 5
+  ]
 },
 "rationale": {
   "why": "Background jobs fail silently or crash the scheduler thread.",

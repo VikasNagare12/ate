@@ -52,16 +52,14 @@ public class ScheduledJobResiliencyEvaluator implements RuleEvaluator {
         List<String> resilienceAnnotations = rule.getConstraints() != null && rule.getConstraints().getMustInvokeAnnotatedMethods() != null
                 ? rule.getConstraints().getMustInvokeAnnotatedMethods()
                 : DEFAULT_RESILIENCE_ANNOTATIONS;
-        
-        int maxDepth = rule.getConstraints() != null && rule.getConstraints().getMaxCallDepth() != null
-                ? rule.getConstraints().getMaxCallDepth() : 5;
+
 
         for (Method method : scheduledMethods) {
             // Check if method itself has resilience (depth 0 optimization)
             boolean selfResilient = resilienceAnnotations.stream().anyMatch(method::hasAnnotation);
             if (selfResilient) continue;
 
-            Set<String> reachable = callGraph.findReachableMethods(method.getFullyQualifiedName(), maxDepth);
+            Set<String> reachable = callGraph.findReachableMethods(method.getFullyQualifiedName());
             
             // Check if ANY reachable method has ANY resilience annotation
             boolean resilientCallFound = false;
