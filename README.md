@@ -1,245 +1,248 @@
-# ATE - Architecture & Transaction Enforcement Engine
+# ATE - Architectural Transaction Engine
 
-A top-tier static code analysis engine for Java/Spring enterprise codebases focused on **architecture enforcement**, not just code quality.
+> Static code analysis engine for detecting architectural anti-patterns in Java/Spring applications.
 
-## Architecture Overview
+## 🎯 Overview
+
+ATE analyzes Java/Spring codebases to detect architectural anti-patterns that can cause:
+- **Transaction safety issues** - Remote calls inside transactions
+- **Async safety issues** - Transaction context loss in async methods  
+- **Retry safety issues** - Database operations without retry logic
+- **Circular dependencies** - Package-level dependency cycles
+
+## 🏗️ Architecture
+
+Clean Architecture (Hexagonal) with clear separation of concerns:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    REPOSITORY SCANNER                        │
-│  - Discovers .java files                                     │
-│  - Reads build metadata (pom.xml, build.gradle)              │
-└──────────────────────┬──────────────────────────────────────┘
-                       ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    AST PARSER LAYER                          │
-│  - Parses Java syntax → AST                                  │
-│  - Extracts annotations (retention-aware)                    │
-└──────────────────────┬──────────────────────────────────────┘
-                       ↓
-┌─────────────────────────────────────────────────────────────┐
-│              SOURCE MODEL (CANONICAL)                        │
-│                    ⭐ MOST IMPORTANT ⭐                       │
-│  - Immutable, fully resolved, indexed                        │
-│  - Single source of truth for all analysis                  │
-└──────────────────────┬──────────────────────────────────────┘
-                       ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    RULE ENGINE                               │
-│  - Loads JSON rule definitions                               │
-│  - Queries Source Model (read-only)                          │
-│  - Traverses precomputed graphs                              │
-└──────────────────────┬──────────────────────────────────────┘
-                       ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    REPORT MODEL                              │
-│  - Violations (normalized, fingerprinted)                    │
-│  - Severity assignments                                      │
-│  - PASS/FAIL determination                                   │
-└─────────────────────────────────────────────────────────────┘
+com.vidnyan.ate/
+├── domain/              # Pure domain logic (no frameworks)
+│   ├── model/           # Immutable records: TypeEntity, MethodEntity, etc.
+│   ├── graph/           # CallGraph, DependencyGraph, CallEdge
+│   └── rule/            # RuleDefinition, Violation, RuleEvaluator
+│
+├── application/         # Use cases and ports
+│   ├── port/in/         # Primary ports (AnalyzeCodeUseCase)
+│   ├── port/out/        # Secondary ports (SourceCodeParser, TypeResolver)
+│   └── service/         # Application services
+│
+├── adapter/             # Framework implementations
+│   ├── in/cli/          # CLI runner
+│   └── out/             # Parsers, evaluators, repositories
+│       ├── parser/      # JavaParserAdapterV2 with SymbolSolver
+│       ├── evaluator/   # Rule evaluators
+│       ├── rule/        # FileSystemRuleRepository
+│       └── ai/          # MockAIAdvisor
+│
+└── config/              # Spring configuration
 ```
 
-## Key Design Principles
+## 🚀 Quick Start
 
-### 1. **Source Model as Central Component**
-- **Immutable**: Built once, never modified
-- **Fully Resolved**: All symbols, types, and relationships resolved
-- **Indexed**: O(1) lookups for common queries
-- **Self-Contained**: No external dependencies after construction
+### Prerequisites
+- Java 21+
+- Maven 3.8+
 
-### 2. **Deterministic & Auditable**
-- Same input → same output (no randomness)
-- Every violation includes full context and traceable paths
-- Rules are declarative (JSON), not procedural code
+### Run Analysis
 
-### 3. **Separation of Concerns**
-- **Rules are Data**: JSON definitions contain no analysis logic
-- **Model is Immutable**: Built once, queried many times
-- **Graphs are Precomputed**: Not computed on-demand
-- **AI is Advisory**: Explains violations, doesn't enforce rules
+```bash
+# Analyze a project
+./mvnw spring-boot:run \
+  -Dspring-boot.run.jvmArguments="-Date.analyze.path=/path/to/java/src"
+```
 
-### 4. **Static Analysis Only**
-- No runtime execution
-- No Spring context loading
-- No log analysis
-- Pure static code analysis
+### Build
 
-## Core Components
+```bash
+./mvnw clean package
+java -jar target/ate-0.0.1-SNAPSHOT.jar -Date.analyze.path=/path/to/src
+```
 
-### Model Layer (`com.vidnyan.ate.model`)
-- **Type**: Represents classes, interfaces, enums, annotations
-- **Method**: Represents methods with metadata (Spring annotations, complexity)
-- **Field**: Represents fields with annotations
-- **Relationship**: Represents relationships (CALLS, REFERENCES, INHERITS, etc.)
-- **SourceModel**: The canonical, immutable model
+## 📋 Rules
 
-### Graph Layer (`com.vidnyan.ate.graph`)
-- **CallGraph**: Precomputed method call graph (bidirectional)
-- **DependencyGraph**: Package-level dependency graph with cycle detection
+| Rule ID | Name | Severity | Description |
+|---------|------|----------|-------------|
+| `TX-BOUNDARY-001` | No Remote Calls Inside Transaction | BLOCKER | Detects HTTP/messaging calls inside @Transactional methods |
+| `ASYNC-TX-001` | Async Transaction Context Loss | ERROR | Detects @Async methods with @Transactional |
+| `JDBC-RETRY-001` | JDBC Without Retry | WARN | Detects database calls without @Retryable |
+| `CIRCULAR-DEP-001` | Circular Package Dependency | ERROR | Detects package-level dependency cycles |
 
-### Rule Engine (`com.vidnyan.ate.rule`)
-- **RuleDefinition**: JSON-serializable rule structure
-- **RuleEngine**: detectViolationss rules against Source Model
-- **Violation**: Immutable violation representation
+### Custom Rules
 
-### Report Layer (`com.vidnyan.ate.report`)
-- **ReportModel**: Final analysis report with violations grouped by severity
-
-## Rule Definition Format
-
-Rules are defined in JSON with the following structure:
+Add JSON rule definitions to `src/main/resources/rules/`:
 
 ```json
 {
-  "ruleId": "RULE_ID",
-  "severity": "BLOCKER|ERROR|WARN|INFO",
-  "description": "Human-readable description",
-  "query": {
-    "type": "graph_traversal|model_query|pattern_match",
-    "graph": "call_graph|dependency_graph",
-    "pattern": {
-      "start": { "annotation": "...", "element": "method" },
-      "traverse": { "edge": "calls", "maxDepth": 10 },
-      "target": { "annotation": [...] }
+  "id": "MY-RULE-001",
+  "name": "My Custom Rule",
+  "description": "Description of what the rule detects",
+  "severity": "ERROR",
+  "category": "CUSTOM",
+  "detection": {
+    "entryPoints": {
+      "annotations": ["MyAnnotation"],
+      "types": [],
+      "methodPatterns": []
+    },
+    "sinks": {
+      "types": ["com.example.DangerousClass"],
+      "annotations": [],
+      "methodPatterns": []
     }
   },
-  "violation": {
-    "message": "Template with {placeholders}",
-    "location": "method|callSite|package"
+  "remediation": {
+    "quickFix": "How to fix this issue",
+    "explanation": "Why this is a problem",
+    "references": []
   }
 }
 ```
 
-## Example Rules
+## 🔧 Components
 
-### 1. Scheduled Job Resiliency
-Detects `@Scheduled` methods that don't use retry/resilience logic.
+### Domain Layer
 
-**File**: `src/main/resources/rules/scheduled-job-resiliency.json`
+**Domain Model (Immutable Records)**
+- `TypeEntity` - Classes, interfaces, enums, records
+- `MethodEntity` - Methods with parameters, annotations
+- `FieldEntity` - Class fields
+- `Relationship` - Connections between code elements
+- `SourceModel` - Aggregate root with query methods
 
-### 2. Transaction Boundary Violation
-Detects remote calls (Feign, RestTemplate) inside `@Transactional` methods.
+**Graph Layer**
+- `CallGraph` - Method call relationships with traversal
+- `DependencyGraph` - Package-level dependencies with cycle detection
+- `CallEdge` - Call metadata (type, location, resolved FQN)
 
-**File**: `src/main/resources/rules/transaction-boundary-violation.json`
+**Rule Layer**
+- `RuleDefinition` - Rule configuration with detection/remediation
+- `Violation` - Detected issues with location and call chain
+- `EvaluationResult` - Rule evaluation outcome
+- `RuleEvaluator` - Interface for rule implementations
 
-### 3. Circular Dependency
-Detects circular dependencies between packages.
+### Application Layer
 
-**File**: `src/main/resources/rules/circular-dependency.json`
+**Ports (Interfaces)**
+- `AnalyzeCodeUseCase` - Primary entry point
+- `SourceCodeParser` - Parse source files to domain model
+- `TypeResolver` - Resolve type FQNs
+- `RuleRepository` - Load rule definitions
+- `AIAdvisor` - AI-powered recommendations
 
-## Usage
+### Adapter Layer
 
-### Spring Boot Application
+**Parsers**
+- `JavaParserAdapterV2` - Uses JavaSymbolSolver for ~95% type resolution
 
-The engine runs as a Spring Boot application using `CommandLineRunner`. All components use dependency injection - no `new` keyword needed!
+**Evaluators**
+- `PathReachabilityEvaluator` - Generic entry→sink detection
+- `TransactionBoundaryEvaluatorV2` - Remote calls in @Transactional
+- `AsyncTransactionEvaluatorV2` - @Async + @Transactional conflicts
+- `JdbcRetrySafetyEvaluatorV2` - JDBC without retry
+- `CircularDependencyEvaluatorV2` - Package cycles
 
-#### Configuration
+## 📊 Type Resolution
 
-Configure via `application.properties`:
+ATE uses JavaParser's SymbolSolver for accurate type resolution:
 
-```properties
-# Path to repository to analyze
-ate.analysis.repository-path=/path/to/repository
+| Resolution Method | Accuracy |
+|-------------------|----------|
+| ~~Manual lookup~~ | ~60% |
+| **SymbolSolver** | **~95%** |
 
-# Rule files (can be classpath resources or file system paths)
-ate.analysis.rule-files[0]=src/main/resources/rules/scheduled-job-resiliency.json
-ate.analysis.rule-files[1]=src/main/resources/rules/transaction-boundary-violation.json
-ate.analysis.rule-files[2]=src/main/resources/rules/circular-dependency.json
-```
+The SymbolSolver automatically resolves:
+- JDK classes (java.*, javax.*)
+- Application source code
+- Imported types
+- Chained method calls
+- Field types
 
-Or via `application.yml`:
+## 🔌 Extensibility
 
-```yaml
-ate:
-  analysis:
-    repository-path: /path/to/repository
-    rule-files:
-      - src/main/resources/rules/scheduled-job-resiliency.json
-      - src/main/resources/rules/transaction-boundary-violation.json
-      - src/main/resources/rules/circular-dependency.json
-```
-
-#### Running
-
-```bash
-# Using Maven
-mvn spring-boot:run
-
-# Or build and run JAR
-mvn clean package
-java -jar target/ate-0.0.1-SNAPSHOT.jar
-```
-
-#### Programmatic Usage (with Spring Context)
+### Add New Evaluator
 
 ```java
-@Autowired
-private AnalysisEngine analysisEngine;
-
-public void runAnalysis() throws IOException {
-    ReportModel report = analysisEngine.analyze();
+@Component
+public class MyEvaluator implements RuleEvaluator {
     
-    if (report.getResult() == ReportModel.AnalysisResult.FAIL) {
-        // Handle failure
+    @Override
+    public boolean supports(RuleDefinition rule) {
+        return "MY-RULE-001".equals(rule.id());
+    }
+    
+    @Override
+    public EvaluationResult evaluate(EvaluationContext context) {
+        // Access domain model
+        SourceModel model = context.sourceModel();
+        CallGraph callGraph = context.callGraph();
+        
+        // Find violations
+        List<Violation> violations = // ...
+        
+        return EvaluationResult.success(rule.id(), violations, duration, nodesAnalyzed);
     }
 }
 ```
 
-## Analysis Pipeline
+### Add AI Advisor
 
-1. **Load Repository**: Scan for `.java` files
-2. **Discover Source Files**: Filter and group by compilation unit
-3. **Parse Files to AST**: Use JavaParser to build ASTs
-4. **Extract Raw Facts**: Extract types, methods, fields, annotations
-5. **Build Canonical Source Model**: Resolve symbols, extract relationships
-6. **Build Call Graph**: Precompute method call relationships
-7. **Build Dependency Graph**: Precompute package dependencies, detect cycles
-8. **Index Annotations**: Build annotation → entity indexes
-9. **Load Rule Policies**: Parse JSON rule definitions
-10. **detectViolations Rules**: Query model/graphs for violations
-11. **Collect Violations**: Deduplicate and normalize
-12. **Normalize & Fingerprint**: Generate unique IDs for violations
-13. **Severity Decision**: Apply severity levels
-14. **PASS / FAIL**: Determine final result
+Implement `AIAdvisor` interface and replace `MockAIAdvisor`:
 
-## Extending the Engine
+```java
+@Component
+@Primary
+public class OpenAIAdvisor implements AIAdvisor {
+    @Override
+    public AdviceResult getAdvice(List<Violation> violations) {
+        // Call OpenAI/Anthropic API
+    }
+}
+```
 
-### Adding New Rule Types
+## 📁 Project Structure
 
-1. Define rule JSON schema
-2. Implement evaluation in `RuleEngine.detectViolationsRule()`
-3. Add query type handler
+```
+src/main/java/com/vidnyan/ate/
+├── AteApplication.java                    # Spring Boot entry
+├── config/
+│   └── AteConfiguration.java              # Bean configuration
+├── domain/
+│   ├── model/                             # 8 records
+│   ├── graph/                             # 3 classes
+│   └── rule/                              # 5 classes
+├── application/
+│   ├── port/in/                           # 1 interface
+│   ├── port/out/                          # 4 interfaces
+│   └── service/                           # 1 service
+└── adapter/
+    ├── in/cli/                            # 1 CLI runner
+    └── out/
+        ├── parser/                        # 3 classes
+        ├── evaluator/                     # 5 evaluators
+        ├── rule/                          # 1 repository
+        └── ai/                            # 1 advisor
 
-### Adding New Graph Types
+src/main/resources/
+└── rules/                                 # 4 JSON rule definitions
+```
 
-1. Create graph builder class in `com.vidnyan.ate.graph`
-2. Implement `build(SourceModel)` method
-3. Add graph to `RuleEngine` constructor
+## 🛠️ Tech Stack
 
-### Adding New Metadata
+- **Java 21** - Records, pattern matching, virtual threads
+- **Spring Boot 4.0** - DI, configuration
+- **JavaParser 3.26** - AST parsing
+- **JavaSymbolSolver** - Type resolution
+- **Lombok** - Boilerplate reduction
+- **Jackson** - JSON rule parsing
 
-1. Extend model entities (Type, Method, Field)
-2. Update `SourceModelBuilder` to compute metadata
-3. Update rule queries to use new metadata
+## 📝 License
 
-## Dependencies
+MIT License
 
-- **JavaParser**: AST parsing and symbol resolution
-- **Jackson**: JSON rule definition parsing
-- **Lombok**: Reduce boilerplate
-- **Spring Boot**: Framework (optional, can be used standalone)
+## 🤝 Contributing
 
-## Future Enhancements
-
-- [ ] AI Advisory Layer: Explain violations, assess risk, suggest refactoring
-- [ ] Incremental Analysis: Only analyze changed files
-- [ ] SARIF Output: Standard format for CI/CD integration
-- [ ] More Graph Types: Inheritance graph, annotation graph
-- [ ] Method Body Analysis: Extract actual method calls from AST
-- [ ] Type Resolution: Full generic type resolution
-- [ ] Spring Context Analysis: Detect bean dependencies
-
-## License
-
-[Your License Here]
-
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/my-feature`
+3. Commit changes: `git commit -m 'Add my feature'`
+4. Push to branch: `git push origin feature/my-feature`
+5. Open Pull Request
