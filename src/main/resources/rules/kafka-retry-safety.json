@@ -1,0 +1,24 @@
+{
+  "id": "KAFKA-RETRY-SAFETY-001",
+  "name": "Kafka Send Must Not Be Retried",
+  "enabled": true,
+  "severity": "ERROR",
+  "confidence": "HIGH",
+  "description": "KafkaTemplate.send() operations should not be wrapped in application-level @Retry or @Retryable annotations to prevent duplicate message publishing.",
+  "target": {
+    "artifactType": "Method",
+    "namePattern": ".*"
+  },
+  "rationale": {
+    "why": "Wrapping Kafka publishing in a retry loop can lead to duplicate messages if the failure occurs after the message is sent but before acknowledgement.",
+    "impact": "Duplicate records in Kafka topics, consumer processing overhead, data inconsistency."
+  },
+  "remediation": {
+    "summary": "Remove @Retry/@Retryable from the caller or move the send operation outside the retry block.",
+    "options": [
+      "Reli on Kafka client internal retries",
+      "Use an outbox pattern for reliable messaging",
+      "Remove the retry annotation from the calling method"
+    ]
+  }
+}
