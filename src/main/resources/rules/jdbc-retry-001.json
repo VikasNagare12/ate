@@ -1,0 +1,37 @@
+{
+  "id": "JDBC-RETRY-001",
+  "name": "JDBC Operations Without Retry",
+  "description": "Database operations can fail due to transient errors (network issues, deadlocks). Without retry logic, these failures propagate to users.",
+  "severity": "WARN",
+  "category": "RETRY_SAFETY",
+  "detection": {
+    "entryPoints": {
+      "annotations": [],
+      "types": [],
+      "methodPatterns": [".*"]
+    },
+    "sinks": {
+      "annotations": [],
+      "types": [
+        "org.springframework.jdbc.core.JdbcTemplate",
+        "org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate",
+        "javax.persistence.EntityManager",
+        "jakarta.persistence.EntityManager"
+      ],
+      "methodPatterns": []
+    },
+    "pathConstraints": {
+      "mustContain": [],
+      "mustNotContain": ["@Retryable", "@Retry"],
+      "maxDepth": 10
+    }
+  },
+  "remediation": {
+    "quickFix": "Add @Retryable annotation with appropriate maxAttempts and backoff",
+    "explanation": "Use Spring Retry or Resilience4j to automatically retry failed database operations.",
+    "references": [
+      "https://docs.spring.io/spring-retry/reference/",
+      "https://resilience4j.readme.io/docs/retry"
+    ]
+  }
+}

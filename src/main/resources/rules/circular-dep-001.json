@@ -1,0 +1,31 @@
+{
+  "id": "CIRCULAR-DEP-001",
+  "name": "Circular Package Dependency",
+  "description": "Circular dependencies between packages make the code harder to understand, test, and refactor. They can also cause issues with dependency injection and class loading.",
+  "severity": "ERROR",
+  "category": "CIRCULAR_DEPENDENCY",
+  "detection": {
+    "entryPoints": {
+      "annotations": [],
+      "types": [],
+      "methodPatterns": []
+    },
+    "sinks": {
+      "annotations": [],
+      "types": [],
+      "methodPatterns": []
+    },
+    "pathConstraints": {
+      "mustContain": [],
+      "mustNotContain": [],
+      "maxDepth": 100
+    }
+  },
+  "remediation": {
+    "quickFix": "Extract shared code into a common package or use dependency inversion",
+    "explanation": "Use interfaces and dependency inversion to break cycles. Consider the Dependency Inversion Principle (DIP).",
+    "references": [
+      "https://en.wikipedia.org/wiki/Dependency_inversion_principle"
+    ]
+  }
+}

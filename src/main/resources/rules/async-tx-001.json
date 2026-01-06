@@ -1,0 +1,35 @@
+{
+  "id": "ASYNC-TX-001",
+  "name": "Async Transaction Context Loss",
+  "description": "@Async methods run in a different thread, so the @Transactional context does NOT propagate. If you need transactions, start a new one in the async method.",
+  "severity": "ERROR",
+  "category": "ASYNC_SAFETY",
+  "detection": {
+    "entryPoints": {
+      "annotations": [
+        "org.springframework.scheduling.annotation.Async"
+      ],
+      "types": [],
+      "methodPatterns": []
+    },
+    "sinks": {
+      "annotations": [
+        "org.springframework.transaction.annotation.Transactional"
+      ],
+      "types": [],
+      "methodPatterns": []
+    },
+    "pathConstraints": {
+      "mustContain": [],
+      "mustNotContain": [],
+      "maxDepth": 1
+    }
+  },
+  "remediation": {
+    "quickFix": "If you need transactions in async methods, add @Transactional to the async method itself (it will start a new transaction)",
+    "explanation": "Spring's @Transactional uses ThreadLocal to store transaction context. @Async runs in a different thread pool, so the context is not available.",
+    "references": [
+      "https://docs.spring.io/spring-framework/reference/integration/scheduling.html"
+    ]
+  }
+}
