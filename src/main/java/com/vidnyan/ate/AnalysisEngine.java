@@ -51,26 +51,55 @@ public class AnalysisEngine implements CommandLineRunner {
      */
     public ReportModel analyze() throws IOException {
         Path repositoryRoot = Paths.get(analysisProperties.getRepositoryPath()).toAbsolutePath();
-        List<Path> ruleFiles = analysisProperties.getRuleFiles().stream()
-                .map(path -> {
-                    Path p = Paths.get(path);
-                    // If relative path, try to resolve from classpath resources
-                    if (!p.isAbsolute()) {
-                        // Try as classpath resource first
-                        var resource = getClass().getClassLoader().getResource(path);
-                        if (resource != null) {
-                            try {
-                                return Paths.get(resource.toURI());
-                            } catch (Exception e) {
-                                // Fall through to file system path
-                            }
+        log.info("Starting analysis of repository: {}", repositoryRoot);
+
+        // Resolve rule files from directory
+        String ruleDir = analysisProperties.getRuleDirectory();
+        List<Path> ruleFiles = new java.util.ArrayList<>();
+
+        try {
+            // Try as file system path first (relative to project root or absolute)
+            Path ruleDirPath = Paths.get(ruleDir);
+            if (!ruleDirPath.isAbsolute()) {
+                ruleDirPath = Paths.get("src/main/resources/" + ruleDir).toAbsolutePath();
+            }
+
+            if (java.nio.file.Files.exists(ruleDirPath) && java.nio.file.Files.isDirectory(ruleDirPath)) {
+                log.info("Loading rules from directory: {}", ruleDirPath);
+                try (java.util.stream.Stream<Path> stream = java.nio.file.Files.walk(ruleDirPath)) {
+                    ruleFiles = stream
+                            .filter(p -> !java.nio.file.Files.isDirectory(p))
+                            .filter(p -> p.toString().endsWith(".json"))
+                            .collect(java.util.stream.Collectors.toList());
+                }
+            } else {
+                // Try as classpath resource
+                log.info("Loading rules from classpath resource: {}", ruleDir);
+                var url = getClass().getClassLoader().getResource(ruleDir);
+                if (url != null) {
+                    if (url.getProtocol().equals("file")) {
+                        Path path = Paths.get(url.toURI());
+                        try (java.util.stream.Stream<Path> stream = java.nio.file.Files.walk(path)) {
+                            ruleFiles = stream
+                                    .filter(p -> !java.nio.file.Files.isDirectory(p))
+                                    .filter(p -> p.toString().endsWith(".json"))
+                                    .collect(java.util.stream.Collectors.toList());
                         }
-                        // Fall back to file system relative path
-                        return Paths.get(path).toAbsolutePath();
+                    } else if (url.getProtocol().equals("jar")) {
+                        // Simple jar handling - might need more robust solution for production
+                        // For now, if we are in a jar, we might need a different approach
+                        // or assume they are unpacked or listed.
+                        // Given the context (local dev/execution), file system fallback is primary.
+                        log.warn(
+                                "JAR rule loading not fully implemented, falling back to empty list if not found on FS.");
                     }
-                    return p;
-                })
-                .toList();
+                } else {
+                    log.warn("Rule directory not found: {}", ruleDir);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error finding rule files", e);
+        }
         
         log.info("Starting analysis of repository: {}", repositoryRoot);
 
