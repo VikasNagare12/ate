@@ -30,19 +30,22 @@ import java.util.Set;
 public class TransactionBoundaryEvaluator implements RuleEvaluator {
 
     private static final String ID = "TX-BOUNDARY-001";
-    private static final String ID_LEGACY = "TRANSACTION_BOUNDARY_VIOLATION";
 
     private static final String TRANSACTIONAL = "Transactional";
+    private static final String FEIGN_CLIENT = "FeignClient";
 
-    // Default remote clients to check for
-    private static final List<String> DEFAULT_REMOTE_ANNOTATIONS = List.of(
-            "FeignClient",
-            "RestTemplate", // likely field checking, but let's assume methods annotated or classes
-            "WebClient");
+    // Explicit list of forbidden remote client types (FQNs)
+    private static final List<String> FORBIDDEN_TYPES = List.of(
+                    "org.springframework.web.client.RestTemplate",
+                    "org.springframework.web.reactive.function.client.WebClient",
+                    "java.net.http.HttpClient",
+                    "org.apache.http.client.HttpClient",
+                    "java.net.HttpURLConnection",
+                    "com.sun.jersey.api.client.Client");
 
     @Override
     public boolean isApplicable(RuleDefinition rule) {
-        return ID.equals(rule.getId()) || ID_LEGACY.equals(rule.getId());
+        return ID.equals(rule.getId());
     }
 
     @Override
@@ -59,7 +62,6 @@ public class TransactionBoundaryEvaluator implements RuleEvaluator {
         // But for FeignClient, the interface method is annotated with
         // GetMapping/PostMapping usually, but the INTERFACE is @FeignClient.
 
-        List<String> forbiddenAnnotations = DEFAULT_REMOTE_ANNOTATIONS;
 
 
         for (Method txMethod : txMethods) {
@@ -68,12 +70,27 @@ public class TransactionBoundaryEvaluator implements RuleEvaluator {
             for (String reachedName : reachable) {
                 Method reached = sourceModel.getMethod(reachedName);
                 if (reached != null) {
-                    // Check if method OR ITS CLASS has the forbidden annotation
-                    // FeignClient is on the class (interface)
-                    boolean isRemote = forbiddenAnnotations.stream().anyMatch(ann -> reached.hasAnnotation(ann)
-                            || sourceModel.getType(reached.getContainingTypeFqn()).hasAnnotation(ann));
 
-                    if (isRemote) {
+                        String typeFqn = reached.getContainingTypeFqn();
+
+                        // 1. Check for specific Forbidden Types (Class/Interface matches)
+                        // We check if the method belongs to one of the known HTTP client
+                        // classes/interfaces.
+                        boolean isRemoteType = FORBIDDEN_TYPES.contains(typeFqn);
+
+                        // 2. Check for @FeignClient on the containing type (Interface)
+                        boolean isFeign = false;
+                        // Only check if not already found to avoid extra lookups
+                        if (!isRemoteType) {
+                                // Check if the type itself has @FeignClient annotation
+                                // We need to look up the Type object from SourceModel
+                                var type = sourceModel.getType(typeFqn);
+                                if (type != null && type.hasAnnotation(FEIGN_CLIENT)) {
+                                        isFeign = true;
+                                }
+                        }
+
+                    if (isRemoteType || isFeign) {
                         List<List<String>> chains = callGraph.findCallChainsToTarget(
                                 txMethod.getFullyQualifiedName(),
                                         reachedName);
@@ -90,7 +107,8 @@ public class TransactionBoundaryEvaluator implements RuleEvaluator {
                                 .context(Map.of(
                                         "source", txMethod.getFullyQualifiedName(),
                                         "target", reachedName,
-                                        "callChain", chainDisplay,
+                                                        "targetType", typeFqn,
+                                                        "callChain", chainDisplay,
                                         "remediation",
                                         rule.getRemediation() != null ? rule.getRemediation().getSummary()
                                                 : "Move remote call outside transaction."))
