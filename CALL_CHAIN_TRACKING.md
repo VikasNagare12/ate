@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `CallGraph` now supports **call chain tracking** - the ability to trace execution paths like `a→b→c→d` through your codebase. This is essential for:
+The `CallGraph` now isApplicable **call chain tracking** - the ability to trace execution paths like `a→b→c→d` through your codebase. This is essential for:
 
 - **Transaction boundary analysis** - Understanding which methods execute within a transaction scope
 - **Data flow tracing** - Following how data moves through your application
@@ -282,7 +282,7 @@ You can use call chain tracking in custom rules:
 // Example rule: Detect @Scheduled methods calling @Transactional methods
 public class ScheduledTransactionRule implements Rule {
     @Override
-    public List<Violation> evaluate(RuleContext context) {
+    public List<Violation> detectViolations(RuleContext context) {
         List<Violation> violations = new ArrayList<>();
         
         Set<String> scheduledMethods = context.getSourceModel()

@@ -24,12 +24,12 @@ public class CircularDependencyEvaluator implements RuleEvaluator {
     private static final String ID = "CIRCULAR-DEPENDENCY-001";
 
     @Override
-    public boolean supports(RuleDefinition rule) {
+    public boolean isApplicable(RuleDefinition rule) {
         return ID.equals(rule.getId());
     }
 
     @Override
-    public List<Violation> evaluate(RuleDefinition rule, SourceModel sourceModel, CallGraph callGraph, DependencyGraph dependencyGraph) {
+    public List<Violation> detectViolations(RuleDefinition rule, SourceModel sourceModel, CallGraph callGraph, DependencyGraph dependencyGraph) {
         List<Violation> violations = new ArrayList<>();
         
         if (dependencyGraph.hasCircularDependencies()) {

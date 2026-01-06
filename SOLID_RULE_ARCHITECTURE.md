@@ -64,7 +64,7 @@ All checkers are interchangeable via the interface:
 ```java
 List<RuleChecker> checkers = [...];  // Any RuleChecker works
 for (RuleChecker checker : checkers) {
-    if (checker.supports(rule)) {
+    if (checker.isApplicable(rule)) {
         violations.addAll(checker.check(rule, ...));
     }
 }
@@ -75,7 +75,7 @@ Clean, focused interface:
 
 ```java
 public interface RuleChecker {
-    boolean supports(ArchitecturalRule rule);
+    boolean isApplicable(ArchitecturalRule rule);
     List<Violation> check(...);
 }
 ```
@@ -153,7 +153,7 @@ public class AnnotatedMethodInvocationChecker implements RuleChecker { ... }
 
 ```java
 public interface RuleChecker {
-    boolean supports(ArchitecturalRule rule);
+    boolean isApplicable(ArchitecturalRule rule);
     List<Violation> check(ArchitecturalRule rule, 
                           SourceModel sourceModel, 
                           CallGraph callGraph, 
@@ -168,7 +168,7 @@ public interface RuleChecker {
 public class AnnotatedMethodInvocationChecker implements RuleChecker {
     
     @Override
-    public boolean supports(ArchitecturalRule rule) {
+    public boolean isApplicable(ArchitecturalRule rule) {
         return rule.getTarget().getType() == ANNOTATED_METHOD
             && rule.getConstraints().getMustNotInvokeAnnotatedMethods() != null;
     }
@@ -237,7 +237,7 @@ public List<Violation> check(...) {
 @Component
 public class SecurityBoundaryChecker implements RuleChecker {
     @Override
-    public boolean supports(ArchitecturalRule rule) {
+    public boolean isApplicable(ArchitecturalRule rule) {
         return rule.getConstraints().getMustNotReachExternalApis() != null;
     }
     

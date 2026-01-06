@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Rule Engine - evaluates declarative rules against the Source Model.
+ * Rule Engine - detectViolationss declarative rules against the Source Model.
  * Rules are loaded from JSON and query the model/graphs (read-only).
  * 
  * Uses Strategy Pattern (RuleEvaluator) to support different rule types.
@@ -66,14 +66,14 @@ public class RuleEngine {
     }
 
     /**
-     * Evaluate all rules and return violations.
+     * detectViolations all rules and return violations.
      */
-    public List<Violation> evaluateRules(List<RuleDefinition> rules) {
+    public List<Violation> detectViolationsRules(List<RuleDefinition> rules) {
         log.info("Evaluating {} rules...", rules.size());
         List<Violation> allViolations = new ArrayList<>();
 
         for (RuleDefinition rule : rules) {
-            List<Violation> violations = evaluateRule(rule);
+            List<Violation> violations = detectViolationsRule(rule);
             allViolations.addAll(violations);
             log.debug("Found {} violations for rule {}", violations.size(), rule.getId());
         }
@@ -82,12 +82,12 @@ public class RuleEngine {
     }
 
     /**
-     * Evaluate a single rule using the appropriate evaluator.
+     * detectViolations a single rule using the appropriate evaluator.
      */
-    private List<Violation> evaluateRule(RuleDefinition rule) {
-        // Find an evaluator that supports this rule
+    private List<Violation> detectViolationsRule(RuleDefinition rule) {
+        // Find an evaluator that isApplicable this rule
         List<RuleEvaluator> capableEvaluators = evaluators.stream()
-                .filter(e -> e.supports(rule))
+                .filter(e -> e.isApplicable(rule))
                 .toList();
 
         if (capableEvaluators.isEmpty()) {
@@ -98,7 +98,7 @@ public class RuleEngine {
         List<Violation> violations = new ArrayList<>();
         for (RuleEvaluator evaluator : capableEvaluators) {
             try {
-                violations.addAll(evaluator.evaluate(rule, sourceModel, callGraph, dependencyGraph));
+                violations.addAll(evaluator.detectViolations(rule, sourceModel, callGraph, dependencyGraph));
             } catch (Exception e) {
                 log.error("Error evaluating rule {} with evaluator {}", rule.getId(),
                         evaluator.getClass().getSimpleName(), e);

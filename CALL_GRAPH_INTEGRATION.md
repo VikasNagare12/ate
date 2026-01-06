@@ -18,9 +18,9 @@ AnalysisEngine
     ↓
 RuleEngine.initialize(sourceModel, callGraph, dependencyGraph)
     ↓
-RuleEngine.evaluateRules()
+RuleEngine.detectViolationsRules()
     ↓
-RuleEvaluator.evaluate(rule, sourceModel, callGraph, dependencyGraph)
+RuleEvaluator.detectViolations(rule, sourceModel, callGraph, dependencyGraph)
     ↓
     ├─ GraphTraversalEvaluator (uses callGraph.findReachableMethods())
     ├─ CustomEvaluator (can use callGraph.findCallChains())
@@ -226,12 +226,12 @@ If you need more complex logic than JSON rules support, create a custom evaluato
 public class TransactionChainAnalyzer implements RuleEvaluator {
     
     @Override
-    public boolean supports(RuleDefinition rule) {
+    public boolean isApplicable(RuleDefinition rule) {
         return "transaction_chain_analysis".equals(rule.getQuery().getType());
     }
     
     @Override
-    public List<Violation> evaluate(RuleDefinition rule, SourceModel sourceModel, 
+    public List<Violation> detectViolations(RuleDefinition rule, SourceModel sourceModel, 
                                     CallGraph callGraph, DependencyGraph dependencyGraph) {
         List<Violation> violations = new ArrayList<>();
         
@@ -321,7 +321,7 @@ public class TransactionChainAnalyzer implements RuleEvaluator {
 
 The CallGraph is **production-ready** and integrated into the rule engine:
 
-✅ **Available in all evaluators** via `RuleEvaluator.evaluate()` method  
+✅ **Available in all evaluators** via `RuleEvaluator.detectViolations()` method  
 ✅ **4 example rules** for common boundary violations  
 ✅ **Full API** for custom analysis (findCallChains, findTransactionBoundaries, etc.)  
 ✅ **Performance optimized** with depth limits and cycle detection  

@@ -12,7 +12,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Evaluates rules using generic graph traversal.
+ * detectViolationss rules using generic graph traversal.
  * 
  * @deprecated As of ATE 2.0, this generic evaluator is replaced by specific,
  *             domain-centric
@@ -28,14 +28,14 @@ import java.util.List;
 public class GraphTraversalEvaluator implements RuleEvaluator {
 
     @Override
-    public boolean supports(RuleDefinition rule) {
+    public boolean isApplicable(RuleDefinition rule) {
         // This legacy evaluator does not support the new v2 schema rules.
         // It only supported v1 rules which had a "query" field, now removed.
         return false;
     }
 
     @Override
-    public List<Violation> evaluate(RuleDefinition rule, SourceModel sourceModel, CallGraph callGraph, DependencyGraph dependencyGraph) {
+    public List<Violation> detectViolations(RuleDefinition rule, SourceModel sourceModel, CallGraph callGraph, DependencyGraph dependencyGraph) {
         log.warn(
                 "Invoked deprecated GraphTraversalEvaluator for rule: {}. This evaluator is non-functional with the new rule schema.",
                 rule.getId());

@@ -21,12 +21,12 @@ public class JdbcRetrySafetyEvaluator implements RuleEvaluator {
     private static final String ASYNC_ANNOTATION = "Async"; // Spring
 
     @Override
-    public boolean supports(RuleDefinition rule) {
+    public boolean isApplicable(RuleDefinition rule) {
         return "JDBC-RETRY-SAFETY-001".equals(rule.getId());
     }
 
     @Override
-    public List<Violation> evaluate(RuleDefinition rule, SourceModel sourceModel, CallGraph callGraph,
+    public List<Violation> detectViolations(RuleDefinition rule, SourceModel sourceModel, CallGraph callGraph,
             DependencyGraph dependencyGraph) {
         List<Violation> violations = new ArrayList<>();
 

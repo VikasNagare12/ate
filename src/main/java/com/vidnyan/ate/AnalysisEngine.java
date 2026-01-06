@@ -31,7 +31,7 @@ import java.util.List;
  * 3. Build Source Model
  * 4. Build graphs
  * 5. Load rules
- * 6. Evaluate rules
+ * 6. detectViolations rules
  * 7. Generate report
  */
 @Slf4j
@@ -110,9 +110,9 @@ public class AnalysisEngine implements CommandLineRunner {
         List<RuleDefinition> rules = ruleEngine.loadRules(ruleFiles);
         log.info("Loaded {} rules", rules.size());
         
-        // Step 7: Evaluate rules
+        // Step 7: detectViolations rules
         log.info("Step 7: Evaluating rules...");
-        List<Violation> violations = ruleEngine.evaluateRules(rules);
+        List<Violation> violations = ruleEngine.detectViolationsRules(rules);
         log.info("Found {} violations", violations.size());
         
         // Step 8: Generate report

@@ -15,7 +15,7 @@
 - `formatCallChain(chain)` - Pretty print with arrows (→)
 
 ### 3. Rule Engine Integration
-- **CallGraph available in all evaluators** via `RuleEvaluator.evaluate()`
+- **CallGraph available in all evaluators** via `RuleEvaluator.detectViolations()`
 - **GraphTraversalEvaluator** uses `callGraph.findReachableMethods()`
 - **Custom evaluators** can use full CallGraph API
 

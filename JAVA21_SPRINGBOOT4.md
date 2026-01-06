@@ -24,9 +24,9 @@
 ### 1. Switch Expressions (RuleEngine.java)
 ```java
 return switch (queryType) {
-    case "graph_traversal" -> evaluateGraphTraversalRule(rule);
-    case "model_query" -> evaluateModelQueryRule(rule);
-    case "pattern_match" -> evaluatePatternMatchRule(rule);
+    case "graph_traversal" -> detectViolationsGraphTraversalRule(rule);
+    case "model_query" -> detectViolationsModelQueryRule(rule);
+    case "pattern_match" -> detectViolationsPatternMatchRule(rule);
     default -> {
         log.warn("Unknown query type: {}", queryType);
         yield List.of();

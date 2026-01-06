@@ -14,14 +14,14 @@ import java.util.List;
 public interface RuleEvaluator {
     
     /**
-     * Check if this evaluator supports the given rule.
+     * Check if this evaluator isApplicable the given rule.
      */
-    boolean supports(RuleDefinition rule);
+    boolean isApplicable(RuleDefinition rule);
     
     /**
-     * Evaluate the rule against the model and graphs.
+     * detectViolations the rule against the model and graphs.
      */
-    List<Violation> evaluate(RuleDefinition rule, 
+    List<Violation> detectViolations(RuleDefinition rule,
                             SourceModel sourceModel, 
                             CallGraph callGraph, 
                             DependencyGraph dependencyGraph);

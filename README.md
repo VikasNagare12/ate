@@ -79,7 +79,7 @@ A top-tier static code analysis engine for Java/Spring enterprise codebases focu
 
 ### Rule Engine (`com.vidnyan.ate.rule`)
 - **RuleDefinition**: JSON-serializable rule structure
-- **RuleEngine**: Evaluates rules against Source Model
+- **RuleEngine**: detectViolationss rules against Source Model
 - **Violation**: Immutable violation representation
 
 ### Report Layer (`com.vidnyan.ate.report`)
@@ -196,7 +196,7 @@ public void runAnalysis() throws IOException {
 7. **Build Dependency Graph**: Precompute package dependencies, detect cycles
 8. **Index Annotations**: Build annotation → entity indexes
 9. **Load Rule Policies**: Parse JSON rule definitions
-10. **Evaluate Rules**: Query model/graphs for violations
+10. **detectViolations Rules**: Query model/graphs for violations
 11. **Collect Violations**: Deduplicate and normalize
 12. **Normalize & Fingerprint**: Generate unique IDs for violations
 13. **Severity Decision**: Apply severity levels
@@ -207,7 +207,7 @@ public void runAnalysis() throws IOException {
 ### Adding New Rule Types
 
 1. Define rule JSON schema
-2. Implement evaluation in `RuleEngine.evaluateRule()`
+2. Implement evaluation in `RuleEngine.detectViolationsRule()`
 3. Add query type handler
 
 ### Adding New Graph Types

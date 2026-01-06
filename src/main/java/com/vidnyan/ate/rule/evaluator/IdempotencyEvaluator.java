@@ -41,12 +41,12 @@ public class IdempotencyEvaluator implements RuleEvaluator {
     );
 
     @Override
-    public boolean supports(RuleDefinition rule) {
+    public boolean isApplicable(RuleDefinition rule) {
         return ID.equals(rule.getId()) || ID_LEGACY.equals(rule.getId());
     }
 
     @Override
-    public List<Violation> evaluate(RuleDefinition rule, SourceModel sourceModel, CallGraph callGraph, DependencyGraph dependencyGraph) {
+    public List<Violation> detectViolations(RuleDefinition rule, SourceModel sourceModel, CallGraph callGraph, DependencyGraph dependencyGraph) {
         List<Violation> violations = new ArrayList<>();
         
         List<Method> retryableMethods = sourceModel.getMethodsAnnotatedWith(RETRYABLE);
