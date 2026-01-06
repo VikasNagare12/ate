@@ -17,11 +17,11 @@ import java.util.*;
 @Value
 @Builder
 public class CallGraph {
-    // Outgoing calls: method → methods it calls
-    Map<String, List<String>> outgoingCalls;
+    // Outgoing calls: method → list of relationships (where method is source)
+    Map<String, List<Relationship>> outgoingCalls;
     
-    // Incoming calls: method → methods that call it
-    Map<String, List<String>> incomingCalls;
+    // Incoming calls: method → list of relationships (where method is target)
+    Map<String, List<Relationship>> incomingCalls;
     
     // Call sites: method → list of call relationships
     Map<String, List<Relationship>> callSites;
@@ -33,8 +33,8 @@ public class CallGraph {
      * Build call graph from Source Model.
      */
     public static CallGraph build(SourceModel model) {
-        Map<String, List<String>> outgoing = new HashMap<>();
-        Map<String, List<String>> incoming = new HashMap<>();
+        Map<String, List<Relationship>> outgoing = new HashMap<>();
+        Map<String, List<Relationship>> incoming = new HashMap<>();
         Map<String, List<Relationship>> sites = new HashMap<>();
         
         // Extract CALLS relationships
@@ -42,13 +42,13 @@ public class CallGraph {
         
         for (Relationship call : calls) {
             String caller = call.getSourceEntityId();
-            String callee = call.getTargetEntityId();
+            String calleeRaw = call.getTargetEntityId();
             
-            // Outgoing
-            outgoing.computeIfAbsent(caller, k -> new ArrayList<>()).add(callee);
+            // Outgoing - Store relationship directly
+            outgoing.computeIfAbsent(caller, k -> new ArrayList<>()).add(call);
             
-            // Incoming
-            incoming.computeIfAbsent(callee, k -> new ArrayList<>()).add(caller);
+            // Incoming - index by raw signature
+            incoming.computeIfAbsent(calleeRaw, k -> new ArrayList<>()).add(call);
             
             // Call sites
             sites.computeIfAbsent(caller, k -> new ArrayList<>()).add(call);
@@ -64,8 +64,18 @@ public class CallGraph {
     
     /**
      * Get all methods called by a method.
+     * Returns list of target method signatures (raw).
      */
     public List<String> getCallees(String methodSignature) {
+        return outgoingCalls.getOrDefault(methodSignature, List.of()).stream()
+                .map(Relationship::getTargetEntityId)
+                .toList();
+    }
+
+    /**
+     * Get outgoing call relationships.
+     */
+    public List<Relationship> getOutgoingCalls(String methodSignature) {
         return outgoingCalls.getOrDefault(methodSignature, List.of());
     }
     
@@ -73,7 +83,9 @@ public class CallGraph {
      * Get all methods that call a method.
      */
     public List<String> getCallers(String methodSignature) {
-        return incomingCalls.getOrDefault(methodSignature, List.of());
+        return incomingCalls.getOrDefault(methodSignature, List.of()).stream()
+                .map(Relationship::getSourceEntityId)
+                .toList();
     }
     
     /**

@@ -12,7 +12,8 @@ import lombok.Value;
 public class Relationship {
     RelationshipType type;
     String sourceEntityId; // FQN or method signature
-    String targetEntityId;
+    String targetEntityId; // Raw signature from AST (e.g. "jdbcTemplate.query(...)")
+    String resolvedTargetEntityId; // Resolved FQN (e.g. "org.springframework.jdbc.core.JdbcTemplate#query(...)")
     Location location; // Where the relationship occurs in source
     CallType callType; // For CALLS relationships
     

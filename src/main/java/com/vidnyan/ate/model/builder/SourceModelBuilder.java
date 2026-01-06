@@ -3,6 +3,7 @@ package com.vidnyan.ate.model.builder;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.AnnotationExpr;
+import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.vidnyan.ate.model.*;
 import com.vidnyan.ate.model.Parameter;
@@ -77,17 +78,19 @@ public class SourceModelBuilder {
                 .map(pd -> pd.getNameAsString())
                 .orElse("");
         
+        List<ImportDeclaration> imports = cu.getImports();
+
         cu.accept(new VoidVisitorAdapter<Void>() {
             @Override
             public void visit(ClassOrInterfaceDeclaration n, Void arg) {
-                Type type = extractType(n, packageName, filePath);
+                Type type = extractType(n, packageName, filePath, imports);
                 types.put(type.getFullyQualifiedName(), type);
                 super.visit(n, arg);
             }
             
             @Override
             public void visit(EnumDeclaration n, Void arg) {
-                Type type = extractEnum(n, packageName, filePath);
+                Type type = extractEnum(n, packageName, filePath, imports);
                 types.put(type.getFullyQualifiedName(), type);
                 super.visit(n, arg);
             }
@@ -95,9 +98,86 @@ public class SourceModelBuilder {
     }
     
     /**
+     * Resolve type simple name to fully qualified name using imports and package.
+     */
+    private String resolveType(String typeName, List<ImportDeclaration> imports,
+            String packageName) {
+        // If already fully qualified, return it
+        if (typeName.contains(".")) {
+            return typeName;
+        }
+
+        // Check standard types (simplified)
+        if (typeName.equals("String") || typeName.equals("Integer") || typeName.equals("Boolean") ||
+                typeName.equals("Long") || typeName.equals("Double") || typeName.equals("Float") ||
+                typeName.equals("Object") || typeName.equals("Class") || typeName.equals("Void")) {
+            return "java.lang." + typeName;
+        }
+
+        // Check imports
+        for (var imp : imports) {
+            String importedName = imp.getNameAsString();
+            boolean isStatic = imp.isStatic();
+            boolean isAsterisk = imp.isAsterisk();
+
+            if (!isStatic && !isAsterisk) {
+                // Exact match import: import com.foo.Bar;
+                if (importedName.endsWith("." + typeName)) {
+                    return importedName;
+                }
+            } else if (isAsterisk) {
+                // Wildcard import: import com.foo.*;
+                // We can't know for sure without scanning classpath, but we can't resolve it
+                // strictly.
+                // Leave as is or assume package? For now, ignore wildcard resolution.
+            }
+        }
+
+        // Assume same package if not found in imports
+        // (This might be wrong for classes in java.lang, but we handled common ones)
+        if (!packageName.isEmpty()) {
+            return packageName + "." + typeName;
+        }
+
+        return typeName;
+    }
+
+    /**
+     * Extract annotations from annotation expressions.
+     */
+    private List<com.vidnyan.ate.model.Annotation> extractAnnotations(
+            List<AnnotationExpr> annotationExprs, java.nio.file.Path filePath,
+            List<ImportDeclaration> imports, String packageName) {
+        return annotationExprs.stream()
+                .map(ae -> {
+                    String name = ae.getNameAsString();
+                    String fqn = resolveType(name, imports, packageName);
+
+                    Map<String, Object> values = new HashMap<>();
+                    // TODO: Extract annotation values
+
+                    return com.vidnyan.ate.model.Annotation.builder()
+                            .name(name)
+                            .fullyQualifiedName(fqn)
+                            .values(values)
+                            .location(Location.builder()
+                                    .filePath(filePath.toString())
+                                    .line(ae.getBegin().map(p -> p.line).orElse(0))
+                                    .column(ae.getBegin().map(p -> p.column).orElse(0))
+                                    .build())
+                            .build();
+                })
+                .toList();
+    }
+
+    /**
      * Extract a Type from a ClassOrInterfaceDeclaration.
      */
-    private Type extractType(ClassOrInterfaceDeclaration decl, String packageName, java.nio.file.Path filePath) {
+    /**
+     * Extract a Type from a ClassOrInterfaceDeclaration.
+     */
+    private Type extractType(ClassOrInterfaceDeclaration decl, String packageName, java.nio.file.Path filePath,
+            List<ImportDeclaration> imports) {
         String simpleName = decl.getNameAsString();
         String fqn = packageName.isEmpty() ? simpleName : packageName + "." + simpleName;
         
@@ -106,23 +186,24 @@ public class SourceModelBuilder {
             kind = TypeKind.ANNOTATION;
         }
         Set<Modifier> modifiers = extractModifiers(decl);
-        List<com.vidnyan.ate.model.Annotation> typeAnnotations = extractAnnotations(decl.getAnnotations(), filePath);
+        List<com.vidnyan.ate.model.Annotation> typeAnnotations = extractAnnotations(decl.getAnnotations(), filePath,
+                imports, packageName);
         
         // Extract super types
         List<TypeRef> superTypes = new ArrayList<>();
         if (decl.getExtendedTypes().isNonEmpty()) {
             decl.getExtendedTypes().forEach(et -> 
-                superTypes.add(TypeRef.of(et.getNameAsString())));
+            superTypes.add(TypeRef.of(resolveType(et.getNameAsString(), imports, packageName))));
         }
         if (decl.getImplementedTypes().isNonEmpty()) {
             decl.getImplementedTypes().forEach(it -> 
-                superTypes.add(TypeRef.of(it.getNameAsString())));
+            superTypes.add(TypeRef.of(resolveType(it.getNameAsString(), imports, packageName))));
         }
         
         // Extract methods
         List<Method> typeMethods = new ArrayList<>();
         for (MethodDeclaration methodDecl : decl.getMethods()) {
-            Method method = extractMethod(methodDecl, fqn, filePath);
+            Method method = extractMethod(methodDecl, fqn, filePath, imports, packageName);
             typeMethods.add(method);
             methods.put(method.getFullyQualifiedName(), method);
             // Store AST node for later method call extraction
@@ -133,7 +214,7 @@ public class SourceModelBuilder {
         List<Field> typeFields = new ArrayList<>();
         for (FieldDeclaration fieldDecl : decl.getFields()) {
             for (VariableDeclarator var : fieldDecl.getVariables()) {
-                Field field = extractField(var, fieldDecl, fqn, filePath);
+                Field field = extractField(var, fieldDecl, fqn, filePath, imports, packageName);
                 typeFields.add(field);
                 fields.put(field.getFullyQualifiedName(), field);
             }
@@ -171,17 +252,19 @@ public class SourceModelBuilder {
     /**
      * Extract a Type from an EnumDeclaration.
      */
-    private Type extractEnum(EnumDeclaration decl, String packageName, java.nio.file.Path filePath) {
+    private Type extractEnum(EnumDeclaration decl, String packageName, java.nio.file.Path filePath,
+            List<ImportDeclaration> imports) {
         String simpleName = decl.getNameAsString();
         String fqn = packageName.isEmpty() ? simpleName : packageName + "." + simpleName;
         
         Set<Modifier> modifiers = extractModifiers(decl);
-        List<com.vidnyan.ate.model.Annotation> typeAnnotations = extractAnnotations(decl.getAnnotations(), filePath);
+        List<com.vidnyan.ate.model.Annotation> typeAnnotations = extractAnnotations(decl.getAnnotations(), filePath,
+                imports, packageName);
         
         // Enums can have methods and fields too
         List<Method> typeMethods = new ArrayList<>();
         for (MethodDeclaration methodDecl : decl.getMethods()) {
-            Method method = extractMethod(methodDecl, fqn, filePath);
+            Method method = extractMethod(methodDecl, fqn, filePath, imports, packageName);
             typeMethods.add(method);
             methods.put(method.getFullyQualifiedName(), method);
             // Store AST node for later method call extraction
@@ -191,7 +274,7 @@ public class SourceModelBuilder {
         List<Field> typeFields = new ArrayList<>();
         for (FieldDeclaration fieldDecl : decl.getFields()) {
             for (VariableDeclarator var : fieldDecl.getVariables()) {
-                Field field = extractField(var, fieldDecl, fqn, filePath);
+                Field field = extractField(var, fieldDecl, fqn, filePath, imports, packageName);
                 typeFields.add(field);
                 fields.put(field.getFullyQualifiedName(), field);
             }
@@ -220,17 +303,18 @@ public class SourceModelBuilder {
     /**
      * Extract a Method from a MethodDeclaration.
      */
-    private Method extractMethod(MethodDeclaration decl, String containingTypeFqn, java.nio.file.Path filePath) {
+    private Method extractMethod(MethodDeclaration decl, String containingTypeFqn, java.nio.file.Path filePath,
+            List<ImportDeclaration> imports, String packageName) {
         String methodName = decl.getNameAsString();
         String signature = buildMethodSignature(decl);
         String fqn = containingTypeFqn + "#" + signature;
         
-        TypeRef returnType = TypeRef.of(decl.getType().asString());
+        TypeRef returnType = TypeRef.of(resolveType(decl.getType().asString(), imports, packageName));
         
         List<Parameter> parameters = decl.getParameters().stream()
                 .map(p -> Parameter.builder()
                         .name(p.getNameAsString())
-                        .type(TypeRef.of(p.getType().asString()))
+                        .type(TypeRef.of(resolveType(p.getType().asString(), imports, packageName)))
                         .isVarArgs(p.isVarArgs())
                         .location(Location.builder()
                                 .filePath(filePath.toString())
@@ -241,7 +325,8 @@ public class SourceModelBuilder {
                 .toList();
         
         Set<Modifier> modifiers = extractModifiers(decl);
-        List<com.vidnyan.ate.model.Annotation> methodAnnotations = extractAnnotations(decl.getAnnotations(), filePath);
+        List<com.vidnyan.ate.model.Annotation> methodAnnotations = extractAnnotations(decl.getAnnotations(), filePath,
+                imports, packageName);
         
         // Detect Spring annotations
         boolean isTransactional = methodAnnotations.stream()
@@ -277,13 +362,15 @@ public class SourceModelBuilder {
      * Extract a Field from a VariableDeclarator.
      */
     private Field extractField(VariableDeclarator var, FieldDeclaration fieldDecl, 
-                              String containingTypeFqn, java.nio.file.Path filePath) {
+            String containingTypeFqn, java.nio.file.Path filePath,
+            List<ImportDeclaration> imports, String packageName) {
         String fieldName = var.getNameAsString();
         String fqn = containingTypeFqn + "." + fieldName;
         
-        TypeRef type = TypeRef.of(fieldDecl.getElementType().asString());
+        TypeRef type = TypeRef.of(resolveType(fieldDecl.getElementType().asString(), imports, packageName));
         Set<Modifier> modifiers = extractModifiers(fieldDecl);
-        List<com.vidnyan.ate.model.Annotation> fieldAnnotations = extractAnnotations(fieldDecl.getAnnotations(), filePath);
+        List<com.vidnyan.ate.model.Annotation> fieldAnnotations = extractAnnotations(fieldDecl.getAnnotations(),
+                filePath, imports, packageName);
         
         return Field.builder()
                 .name(fieldName)
@@ -355,34 +442,8 @@ public class SourceModelBuilder {
         
         return modifiers;
     }
-    
-    /**
-     * Extract annotations from annotation expressions.
-     */
-    private List<com.vidnyan.ate.model.Annotation> extractAnnotations(
-            List<AnnotationExpr> annotationExprs, java.nio.file.Path filePath) {
-        return annotationExprs.stream()
-                .map(ae -> {
-                    String name = ae.getNameAsString();
-                    // Try to resolve FQN (simplified - would need symbol solver for full resolution)
-                    String fqn = name.contains(".") ? name : name; // TODO: Resolve via imports
-                    
-                    Map<String, Object> values = new HashMap<>();
-                    // TODO: Extract annotation values
-                    
-                    return com.vidnyan.ate.model.Annotation.builder()
-                            .name(name)
-                            .fullyQualifiedName(fqn)
-                            .values(values)
-                            .location(Location.builder()
-                                    .filePath(filePath.toString())
-                                    .line(ae.getBegin().map(p -> p.line).orElse(0))
-                                    .column(ae.getBegin().map(p -> p.column).orElse(0))
-                                    .build())
-                            .build();
-                })
-                .toList();
-    }
+
+
     
     /**
      * Extract method calls from method bodies.
@@ -399,8 +460,37 @@ public class SourceModelBuilder {
                 continue;
             }
             
+            // Find containing type to resolve fields
+            String containingTypeFqn = methods.get(callerFqn).getContainingTypeFqn();
+            Type containingType = types.get(containingTypeFqn);
+
+            // Get method parameters for resolution
+            Method callerMethod = methods.get(callerFqn);
+            Map<String, String> parameterTypes = new HashMap<>();
+            if (callerMethod != null) {
+                for (Parameter param : callerMethod.getParameters()) {
+                    parameterTypes.put(param.getName(), param.getType().getFullyQualifiedName());
+                }
+            }
+
+            // Track local variable types as we visit
+            Map<String, String> localVariableTypes = new HashMap<>();
+
             // Visit method body to find method calls
             methodDecl.getBody().get().accept(new VoidVisitorAdapter<Void>() {
+
+                @Override
+                public void visit(com.github.javaparser.ast.expr.VariableDeclarationExpr varDecl, Void arg) {
+                    super.visit(varDecl, arg);
+                    // Track local variable types
+                    for (var v : varDecl.getVariables()) {
+                        String varName = v.getNameAsString();
+                        String typeName = varDecl.getElementType().asString();
+                        // Try to resolve type name using imports (simplified - use as-is for now)
+                        localVariableTypes.put(varName, typeName);
+                    }
+                }
+
                 @Override
                 public void visit(com.github.javaparser.ast.expr.MethodCallExpr call, Void arg) {
                     super.visit(call, arg);
@@ -408,6 +498,103 @@ public class SourceModelBuilder {
                     // Build callee signature (best effort)
                     String methodName = call.getNameAsString();
                     String calleeSignature = buildCalleeSignature(call);
+                    String resolvedCallee = null;
+
+                    // Try to resolve FQN
+                    if (call.getScope().isPresent()) {
+                        String fullScope = call.getScope().get().toString();
+
+                        // Extract the ROOT variable from chained calls like
+                        // "evaluators.stream().filter()"
+                        // The root is "evaluators" in this case
+                        String scope = fullScope;
+                        if (fullScope.contains(".")) {
+                            scope = fullScope.substring(0, fullScope.indexOf('.'));
+                        }
+                        if (fullScope.contains("(") && !fullScope.startsWith("(")) {
+                            // Could be a method call chain, extract before first paren
+                            String beforeParen = fullScope.substring(0, fullScope.indexOf('('));
+                            if (beforeParen.contains(".")) {
+                                scope = beforeParen.substring(0, beforeParen.indexOf('.'));
+                            } else {
+                                scope = beforeParen;
+                            }
+                        }
+
+                        log.debug("Resolving call: {} with fullScope: {}, extracted scope: {}", calleeSignature,
+                                fullScope, scope);
+
+                        // 1. Check class fields
+                        if (containingType != null && resolvedCallee == null) {
+                            log.debug("  Checking {} fields in {}", containingType.getFields().size(),
+                                    containingType.getSimpleName());
+                            for (Field field : containingType.getFields()) {
+                                log.debug("    Field: {} vs scope: {}", field.getName(), scope);
+                                if (field.getName().equals(scope)) {
+                                    String fieldType = field.getType().getFullyQualifiedName();
+                                    String params = calleeSignature.substring(calleeSignature.indexOf('('));
+                                    resolvedCallee = fieldType + "#" + methodName + params;
+                                    log.debug("  Resolved via field: {}", resolvedCallee);
+                                    break;
+                                }
+                            }
+                        }
+
+                        // 2. Check method parameters
+                        if (resolvedCallee == null && parameterTypes.containsKey(scope)) {
+                            String paramType = parameterTypes.get(scope);
+                            String params = calleeSignature.substring(calleeSignature.indexOf('('));
+                            resolvedCallee = paramType + "#" + methodName + params;
+                            log.debug("  Resolved via parameter: {}", resolvedCallee);
+                        }
+
+                        // 3. Check local variables
+                        if (resolvedCallee == null && localVariableTypes.containsKey(scope)) {
+                            String localType = localVariableTypes.get(scope);
+                            String params = calleeSignature.substring(calleeSignature.indexOf('('));
+                            // localType may not be FQN, but it's better than null
+                            resolvedCallee = localType + "#" + methodName + params;
+                            log.debug("  Resolved via local var: {}", resolvedCallee);
+                        }
+
+                        // 4. Check if scope is a known type (static call to our types)
+                        if (resolvedCallee == null) {
+                            for (Type t : types.values()) {
+                                if (t.getSimpleName().equals(scope)) {
+                                    String params = calleeSignature.substring(calleeSignature.indexOf('('));
+                                    resolvedCallee = t.getFullyQualifiedName() + "#" + methodName + params;
+                                    log.debug("  Resolved via static type: {}", resolvedCallee);
+                                    break;
+                                }
+                            }
+                        }
+
+                        // 5. Check Lombok-generated log field
+                        if (resolvedCallee == null && "log".equals(scope)) {
+                            String params = calleeSignature.substring(calleeSignature.indexOf('('));
+                            resolvedCallee = "org.slf4j.Logger#" + methodName + params;
+                            log.debug("  Resolved via Lombok log: {}", resolvedCallee);
+                        }
+
+                        // 6. Check common JDK types for static calls
+                        if (resolvedCallee == null) {
+                            String jdkType = resolveCommonJdkType(scope);
+                            if (jdkType != null) {
+                                String params = calleeSignature.substring(calleeSignature.indexOf('('));
+                                resolvedCallee = jdkType + "#" + methodName + params;
+                                log.debug("  Resolved via JDK type: {}", resolvedCallee);
+                            }
+                        }
+
+                        if (resolvedCallee == null) {
+                            log.debug("  UNRESOLVED - scope: {}", scope);
+                        }
+                    } else {
+                        // Implicit 'this' call
+                        String params = calleeSignature.substring(calleeSignature.indexOf('('));
+                        resolvedCallee = containingTypeFqn + "#" + methodName + params;
+                        log.debug("Resolved implicit this call: {}", resolvedCallee);
+                    }
                     
                     // Determine call type
                     Relationship.CallType callType = determineCallType(call);
@@ -417,6 +604,7 @@ public class SourceModelBuilder {
                             .type(RelationshipType.CALLS)
                             .sourceEntityId(callerFqn)
                             .targetEntityId(calleeSignature)
+                            .resolvedTargetEntityId(resolvedCallee)
                             .callType(callType)
                             .location(Location.builder()
                                     .filePath(methodDecl.findCompilationUnit()
@@ -435,6 +623,11 @@ public class SourceModelBuilder {
                     
                     // Constructor calls
                     String typeName = creation.getType().getNameAsString();
+                    // Resolve type name? It might be simple name.
+                    // types map has FQNs. We need to resolve typeName in context of this file.
+                    // But we don't have imports here easily unless we passed them or re-parsed.
+                    // For now, leave as best effort.
+
                     String constructorSignature = buildConstructorSignature(creation);
                     
                     relationships.add(Relationship.builder()
@@ -484,6 +677,34 @@ public class SourceModelBuilder {
         return methodName + "(" + params + ")";
     }
     
+    /**
+     * Resolve common JDK types for static method calls.
+     */
+    private String resolveCommonJdkType(String simpleName) {
+        return switch (simpleName) {
+            case "List" -> "java.util.List";
+            case "Set" -> "java.util.Set";
+            case "Map" -> "java.util.Map";
+            case "Arrays" -> "java.util.Arrays";
+            case "Collections" -> "java.util.Collections";
+            case "Optional" -> "java.util.Optional";
+            case "Stream" -> "java.util.stream.Stream";
+            case "Collectors" -> "java.util.stream.Collectors";
+            case "String" -> "java.lang.String";
+            case "Integer" -> "java.lang.Integer";
+            case "Long" -> "java.lang.Long";
+            case "Double" -> "java.lang.Double";
+            case "Boolean" -> "java.lang.Boolean";
+            case "Math" -> "java.lang.Math";
+            case "System" -> "java.lang.System";
+            case "Objects" -> "java.util.Objects";
+            case "Files" -> "java.nio.file.Files";
+            case "Paths" -> "java.nio.file.Paths";
+            case "Path" -> "java.nio.file.Path";
+            default -> null;
+        };
+    }
+
     /**
      * Build constructor signature from object creation expression.
      */

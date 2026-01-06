@@ -63,10 +63,16 @@ public class JdbcRetrySafetyEvaluator implements RuleEvaluator {
         Set<String> callers = new HashSet<>();
         // Iterate all methods in our source model
         for (Method method : sourceModel.getMethods().values()) {
-            List<String> callees = callGraph.getCallees(method.getFullyQualifiedName());
-            for (String callee : callees) {
+            List<com.vidnyan.ate.model.Relationship> relationships = callGraph
+                    .getOutgoingCalls(method.getFullyQualifiedName());
+            for (com.vidnyan.ate.model.Relationship rel : relationships) {
+                // Use resolved FQN if available, otherwise fall back to raw
+                String signatureToCheck = rel.getResolvedTargetEntityId() != null
+                        ? rel.getResolvedTargetEntityId()
+                        : rel.getTargetEntityId();
+
                 // Check if callee belongs to JdbcTemplate classes
-                if (callee.startsWith(JDBC_TEMPLATE) || callee.startsWith(NAMED_PARAM_JDBC)) {
+                if (signatureToCheck.startsWith(JDBC_TEMPLATE) || signatureToCheck.startsWith(NAMED_PARAM_JDBC)) {
                     callers.add(method.getFullyQualifiedName());
                     break; // Found one usage, that's enough to mark method as a sink
                 }

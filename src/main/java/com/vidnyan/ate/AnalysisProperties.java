@@ -21,7 +21,6 @@ public class AnalysisProperties {
      * Default: current directory
      */
     private String repositoryPath = ".";
-    
     /**
      * Directory containing rule files.
      * Default: "rules" (relative to classpath or file system)
