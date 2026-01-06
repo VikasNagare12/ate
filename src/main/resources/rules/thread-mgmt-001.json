@@ -1,0 +1,34 @@
+{
+  "id": "THREAD-MGMT-001",
+  "name": "Direct Thread Creation",
+  "description": "Direct Thread creation bypasses Spring's thread management. Use @Async or TaskExecutor/ExecutorService instead for proper lifecycle management and monitoring.",
+  "severity": "ERROR",
+  "category": "ASYNC_SAFETY",
+  "detection": {
+    "entryPoints": {
+      "annotations": [],
+      "types": [],
+      "methodPatterns": [".*"]
+    },
+    "sinks": {
+      "annotations": [],
+      "types": [
+        "java.lang.Thread"
+      ],
+      "methodPatterns": ["<init>", "start"]
+    },
+    "pathConstraints": {
+      "mustContain": [],
+      "mustNotContain": [],
+      "maxDepth": 10
+    }
+  },
+  "remediation": {
+    "quickFix": "Use @Async annotation or inject TaskExecutor/ThreadPoolTaskExecutor",
+    "explanation": "Direct Thread creation bypasses Spring's lifecycle management, making threads hard to monitor, configure, and gracefully shutdown. Spring executors provide proper thread pooling, naming, and integration with actuator metrics.",
+    "references": [
+      "https://docs.spring.io/spring-framework/reference/integration/scheduling.html",
+      "https://docs.spring.io/spring-boot/reference/features/task-execution-and-scheduling.html"
+    ]
+  }
+}
