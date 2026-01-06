@@ -27,15 +27,14 @@ import java.util.Set;
 @Component
 public class TransactionalCallsAsyncEvaluator implements RuleEvaluator {
 
-    private static final String ID = "TRANSACTIONAL-CALLS-ASYNC"; // Standardized ID
-    private static final String ID_LEGACY = "TRANSACTIONAL_CALLS_ASYNC"; // Handle legacy ID if needed or just enforcement
+    private static final String ID = "TRANSACTIONAL-CALLS-ASYNC";
     
     private static final String TRANSACTIONAL = "Transactional";
     private static final String ASYNC = "Async";
 
     @Override
     public boolean isApplicable(RuleDefinition rule) {
-        return ID.equals(rule.getId()) || ID_LEGACY.equals(rule.getId());
+        return ID.equals(rule.getId());
     }
 
     @Override

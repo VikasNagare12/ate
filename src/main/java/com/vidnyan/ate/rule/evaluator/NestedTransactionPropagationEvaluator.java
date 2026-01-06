@@ -28,13 +28,12 @@ import java.util.Set;
 public class NestedTransactionPropagationEvaluator implements RuleEvaluator {
 
     private static final String ID = "NESTED-TX-PROPAGATION-001";
-    private static final String ID_LEGACY = "NESTED_TRANSACTION_PROPAGATION";
 
     private static final String TRANSACTIONAL = "Transactional";
 
     @Override
     public boolean isApplicable(RuleDefinition rule) {
-        return ID.equals(rule.getId()) || ID_LEGACY.equals(rule.getId());
+        return ID.equals(rule.getId());
     }
 
     @Override

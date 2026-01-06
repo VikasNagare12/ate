@@ -23,6 +23,8 @@ import java.util.regex.Pattern;
  * operations (like sending emails or charging payments) defined by regex patterns.
  * </p>
  */
+
+//TODO change needed
 @Slf4j
 @Component
 public class IdempotencyEvaluator implements RuleEvaluator {
