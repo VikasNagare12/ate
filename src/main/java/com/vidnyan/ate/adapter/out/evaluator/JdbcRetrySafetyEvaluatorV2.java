@@ -36,8 +36,7 @@ public class JdbcRetrySafetyEvaluatorV2 implements RuleEvaluator {
 
     @Override
     public boolean supports(RuleDefinition rule) {
-        return "JDBC-RETRY-001".equals(rule.id()) 
-                || RuleDefinition.Category.RETRY_SAFETY == rule.category();
+        return "JDBC-RETRY-001".equals(rule.id());
     }
     
     @Override

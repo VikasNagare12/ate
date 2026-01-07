@@ -32,6 +32,11 @@ public class PathReachabilityEvaluator implements RuleEvaluator {
     
     @Override
     public boolean supports(RuleDefinition rule) {
+        // Explicitly exclude REMOTE-RETRY-001 as it has a dedicated evaluator
+        if ("REMOTE-RETRY-001".equals(rule.id())) {
+            return false;
+        }
+
         // Supports rules that have both entry points and sinks defined
         return rule.detection() != null 
                 && rule.detection().entryPoints() != null
@@ -105,6 +110,9 @@ public class PathReachabilityEvaluator implements RuleEvaluator {
                     : annotation;
             
             entries.addAll(model.findMethodsWithAnnotation(simpleName));
+            if (!simpleName.equals(annotation)) {
+                entries.addAll(model.findMethodsWithAnnotation(annotation));
+            }
         }
         
         // Find methods in entry point types
@@ -173,19 +181,23 @@ public class PathReachabilityEvaluator implements RuleEvaluator {
     private String buildViolationMessage(
             RuleDefinition rule, 
             MethodEntity entryMethod, 
-            String sinkMethod
+            String sinkMethodFqn
     ) {
         String entryAnnotation = rule.detection().entryPoints().annotations().isEmpty() 
                 ? "" : "@" + getSimpleName(rule.detection().entryPoints().annotations().get(0));
-        String sinkType = rule.detection().sinks().types().isEmpty()
-                ? "sink" : getSimpleName(rule.detection().sinks().types().get(0));
+
+        // Extract type from the actual sink method FQN (e.g., org.example.Client#call
+        // -> Client)
+        String sinkType = sinkMethodFqn.contains("#")
+                ? getSimpleName(sinkMethodFqn.substring(0, sinkMethodFqn.indexOf('#')))
+                : "sink";
         
         return String.format(
-                "%s method '%s' calls %s which may cause %s",
-                entryAnnotation,
+                "%s method '%s' calls %s which violates rule: %s",
+                        entryAnnotation,
                 entryMethod.simpleName(),
                 sinkType,
-                rule.name().toLowerCase()
+                rule.name()
         );
     }
     

@@ -1,0 +1,40 @@
+{
+  "id": "REMOTE-RETRY-001",
+  "name": "No Retry on Non-Idempotent Remote Calls",
+  "description": "Remote calls (HTTP, Kafka) should not be wrapped in retry logic without explicit idempotency handling, as it can lead to duplicate requests or messages if the failure occurs after the remote side has processed the request.",
+  "severity": "CRITICAL",
+  "category": "RETRY_SAFETY",
+  "detection": {
+    "entryPoints": {
+      "annotations": [
+        "org.springframework.retry.annotation.Retryable",
+        "io.github.resilience4j.retry.annotation.Retry",
+        "io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker"
+      ],
+      "types": [],
+      "methodPatterns": []
+    },
+    "sinks": {
+      "annotations": [],
+      "types": [
+        "org.springframework.web.client.RestTemplate",
+        "org.springframework.web.reactive.function.client.WebClient",
+        "java.net.http.HttpClient",
+        "org.springframework.kafka.core.KafkaTemplate"
+      ],
+      "methodPatterns": []
+    },
+    "pathConstraints": {
+      "mustContain": [],
+      "mustNotContain": [],
+      "maxDepth": 30
+    }
+  },
+  "remediation": {
+    "quickFix": "Remove @Retryable or implement idempotent keys/deduplication on the remote side",
+    "explanation": "If a remote call is retried due to a timeout, the original request might have already been processed, leading to a duplicate operation. Use idempotency keys for safe retries.",
+    "references": [
+      "https://microservices.io/patterns/communication-style/idempotent-consumer.html"
+    ]
+  }
+}
