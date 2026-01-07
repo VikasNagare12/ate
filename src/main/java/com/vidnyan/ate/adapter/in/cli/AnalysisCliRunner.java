@@ -30,33 +30,41 @@ public class AnalysisCliRunner implements CommandLineRunner {
     @Value("${ate.analyze.path:}")
     private String sourcePath;
 
+    private final org.springframework.context.ConfigurableApplicationContext context;
+
     @Override
     public void run(String... args) throws Exception {
         if (sourcePath == null || sourcePath.isBlank()) {
             log.info("No source path specified. Set ate.analyze.path property.");
             return;
         }
-        log.info("╔══════════════════════════════════════════════════════════════╗");
-        log.info("║           ATE - Architectural Transaction Engine              ║");
-        log.info("╠══════════════════════════════════════════════════════════════╣");
-        log.info("║ Analyzing: {}", truncatePath(sourcePath, 50));
-        log.info("╚══════════════════════════════════════════════════════════════╝");
 
-        // Run analysis
-        AnalysisRequest request = AnalysisRequest.forPath(Path.of(sourcePath));
-        AnalysisResult result = analyzeCodeUseCase.analyze(request);
+        try {
+            log.info("╔══════════════════════════════════════════════════════════════╗");
+            log.info("║           ATE - Architectural Transaction Engine              ║");
+            log.info("╠══════════════════════════════════════════════════════════════╣");
+            log.info("║ Analyzing: {}", truncatePath(sourcePath, 50));
+            log.info("╚══════════════════════════════════════════════════════════════╝");
 
-        // Print results
-        printResults(result);
+            // Run analysis
+            AnalysisRequest request = AnalysisRequest.forPath(Path.of(sourcePath));
+            AnalysisResult result = analyzeCodeUseCase.analyze(request);
 
-        // Print AI advice
-        if (!result.violations().isEmpty()) {
-            AIAdvisor.AdviceResult advice = aiAdvisor.getAdvice(result.violations());
-            printAdvice(advice);
+            // Print results
+            printResults(result);
+
+            // Print AI advice
+            if (!result.violations().isEmpty()) {
+                AIAdvisor.AdviceResult advice = aiAdvisor.getAdvice(result.violations());
+                printAdvice(advice);
+            }
+
+            log.info("");
+            log.info("Analysis complete!");
+        } finally {
+            // Ensure application shuts down after analysis
+            org.springframework.boot.SpringApplication.exit(context, () -> 0);
         }
-
-        log.info("");
-        log.info("Analysis complete!");
     }
 
     private void printResults(AnalysisResult result) {

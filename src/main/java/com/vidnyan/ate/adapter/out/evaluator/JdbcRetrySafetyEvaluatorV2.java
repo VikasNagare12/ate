@@ -1,8 +1,6 @@
 package com.vidnyan.ate.adapter.out.evaluator;
 
-import com.vidnyan.ate.domain.graph.CallEdge;
 import com.vidnyan.ate.domain.graph.CallGraph;
-import com.vidnyan.ate.domain.model.MethodEntity;
 import com.vidnyan.ate.domain.model.SourceModel;
 import com.vidnyan.ate.domain.rule.*;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +20,6 @@ import java.util.Set;
  */
 @Slf4j
 @Component
-
 public class JdbcRetrySafetyEvaluatorV2 implements RuleEvaluator {
     
     private static final Set<String> JDBC_TYPES = Set.of(
@@ -36,7 +33,7 @@ public class JdbcRetrySafetyEvaluatorV2 implements RuleEvaluator {
     private static final Set<String> RETRY_ANNOTATIONS = Set.of(
             "Retryable", "Retry", "CircuitBreaker"
     );
-    
+
     @Override
     public boolean supports(RuleDefinition rule) {
         return "JDBC-RETRY-001".equals(rule.id()) 
@@ -50,104 +47,119 @@ public class JdbcRetrySafetyEvaluatorV2 implements RuleEvaluator {
         CallGraph callGraph = context.callGraph();
         RuleDefinition rule = context.rule();
         
-        log.debug("Evaluating JDBC retry safety");
+        log.debug("Evaluating JDBC retry safety using async-aware path analysis");
         
         List<Violation> violations = new ArrayList<>();
-        int nodesAnalyzed = 0;
         
-        // Find all methods that call JDBC
-        Set<String> jdbcCallers = findJdbcCallingMethods(model, callGraph);
-        log.debug("Found {} methods calling JDBC", jdbcCallers.size());
+        // 1. Identify all application 'roots'
+        Set<String> roots = findRootMethods(callGraph);
+        log.debug("Found {} application root methods", roots.size());
         
-        for (String methodFqn : jdbcCallers) {
-            nodesAnalyzed++;
-            
-            model.getMethod(methodFqn).ifPresent(method -> {
-                // Check if method or its call chain has retry
-                if (!hasRetryAnnotation(method) && !hasRetryInCallChain(methodFqn, model, callGraph)) {
-                    violations.add(Violation.builder()
-                            .ruleId(rule.id())
-                            .ruleName(rule.name())
-                            .severity(rule.severity())
-                            .message(String.format(
-                                    "Method '%s' calls JDBC without retry mechanism. " +
-                                    "Add @Retryable to handle transient database errors.",
-                                    method.simpleName()
-                            ))
-                            .location(method.location())
-                            .callChain(List.of(methodFqn))
-                            .build());
+        // 2. Identify all methods that directly call JDBC sinks
+        Set<String> applicationSinks = findApplicationSinks(callGraph);
+        log.debug("Found {} application methods calling JDBC directly", applicationSinks.size());
+
+        int pathsAnalyzed = 0;
+
+        // 3. Build and check all possible graphs (paths) from roots to sinks
+        for (String sinkFqn : applicationSinks) {
+            for (String rootFqn : roots) {
+                List<List<String>> chains = callGraph.findCallChains(rootFqn, sinkFqn);
+
+                for (List<String> chain : chains) {
+                    pathsAnalyzed++;
+
+                    // Identify the 'last' Async boundary in the chain
+                    int asyncIndex = findLastAsyncIndex(chain, model);
+
+                    // The 'safety window' starts from the last @Async method (or 0 if none)
+                    // Retry annotations BEFORE this index are ignored because they can't catch
+                    // async failures
+                    List<String> safetyWindow = chain.subList(Math.max(0, asyncIndex), chain.size());
+
+                    boolean protectedPath = safetyWindow.stream()
+                            .anyMatch(fqn -> hasRetryAnnotation(fqn, model));
+
+                    if (!protectedPath) {
+                        model.getMethod(rootFqn).ifPresent(rootMethod -> {
+                            String messagePrefix = asyncIndex >= 0
+                                    ? String.format("Unprotected JDBC call path after @Async boundary in '%s'",
+                                            chain.get(asyncIndex).substring(chain.get(asyncIndex).lastIndexOf('#') + 1))
+                                    : String.format("Unprotected JDBC call path from root '%s'",
+                                            rootMethod.simpleName());
+
+                            violations.add(Violation.builder()
+                                    .ruleId(rule.id())
+                                    .ruleName(rule.name())
+                                    .severity(rule.severity())
+                                    .message(String.format(
+                                            "%s to database operation via '%s'. " +
+                                                    "At least one method in the chain (after the last thread switch) should have @Retryable.",
+                                            messagePrefix,
+                                            sinkFqn.substring(sinkFqn.lastIndexOf('#') + 1)))
+                                    .location(rootMethod.location())
+                                    .callChain(chain)
+                                    .build());
+                        });
+                    }
                 }
-            });
+            }
         }
         
         Duration duration = Duration.between(start, Instant.now());
-        return EvaluationResult.success(rule.id(), violations, duration, nodesAnalyzed);
+        return EvaluationResult.success(rule.id(), violations, duration, pathsAnalyzed);
     }
-    
-    private Set<String> findJdbcCallingMethods(SourceModel model, CallGraph callGraph) {
-        Set<String> callers = new HashSet<>();
-        
-        for (MethodEntity method : model.methods().values()) {
-            for (CallEdge edge : callGraph.getOutgoingCalls(method.fullyQualifiedName())) {
-                String callee = edge.effectiveCalleeFqn();
-                if (callee != null && isJdbcCall(callee)) {
-                    callers.add(method.fullyQualifiedName());
-                    break;
+
+    private int findLastAsyncIndex(List<String> chain, SourceModel model) {
+        for (int i = chain.size() - 1; i >= 0; i--) {
+            String fqn = chain.get(i);
+            if (model.getMethod(fqn).map(m -> m.hasAnnotation("Async")).orElse(false)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private Set<String> findRootMethods(CallGraph callGraph) {
+        Set<String> roots = new HashSet<>();
+        for (String methodFqn : callGraph.getApplicationMethods()) {
+            boolean hasOtherAppCallers = callGraph.getIncomingCalls(methodFqn).stream()
+                    .anyMatch(edge -> callGraph.isApplicationMethod(edge.callerFqn())
+                            && !edge.callerFqn().equals(methodFqn));
+
+            if (!hasOtherAppCallers) {
+                roots.add(methodFqn);
+            }
+        }
+        return roots;
+    }
+
+    private Set<String> findApplicationSinks(CallGraph callGraph) {
+        Set<String> sinks = new HashSet<>();
+        for (String callerFqn : callGraph.getMethodsWithOutgoingCalls()) {
+            if (callGraph.isApplicationMethod(callerFqn)) {
+                boolean callsJdbc = callGraph.getOutgoingCalls(callerFqn).stream()
+                        .anyMatch(edge -> {
+                            String callee = edge.effectiveCalleeFqn();
+                            return callee != null && JDBC_TYPES.stream().anyMatch(callee::startsWith);
+                        });
+
+                if (callsJdbc) {
+                    sinks.add(callerFqn);
                 }
             }
         }
-        
-        return callers;
+        return sinks;
     }
-    
-    private boolean isJdbcCall(String calleeFqn) {
-        for (String jdbcType : JDBC_TYPES) {
-            if (calleeFqn.startsWith(jdbcType + "#")) {
+
+    private boolean hasRetryAnnotation(String methodFqn, SourceModel model) {
+        return model.getMethod(methodFqn).map(method -> {
+            if (RETRY_ANNOTATIONS.stream().anyMatch(method::hasAnnotation)) {
                 return true;
             }
-        }
-        return false;
-    }
-    
-    private boolean hasRetryAnnotation(MethodEntity method) {
-        for (String retryAnnotation : RETRY_ANNOTATIONS) {
-            if (method.hasAnnotation(retryAnnotation)) {
-                return true;
-            }
-        }
-        return false;
-    }
-    
-    private boolean hasRetryInCallChain(String methodFqn, SourceModel model, CallGraph callGraph) {
-        // Check if any caller in the chain has retry annotation
-        Set<String> visited = new HashSet<>();
-        return hasRetryInCallersRecursive(methodFqn, model, callGraph, visited, 0);
-    }
-    
-    private boolean hasRetryInCallersRecursive(
-            String methodFqn,
-            SourceModel model,
-            CallGraph callGraph,
-            Set<String> visited,
-            int depth
-    ) {
-        if (depth > 10 || visited.contains(methodFqn)) {
-            return false;
-        }
-        visited.add(methodFqn);
-        
-        for (String caller : callGraph.getCallers(methodFqn)) {
-            MethodEntity callerMethod = model.getMethod(caller).orElse(null);
-            if (callerMethod != null && hasRetryAnnotation(callerMethod)) {
-                return true;
-            }
-            
-            if (hasRetryInCallersRecursive(caller, model, callGraph, visited, depth + 1)) {
-                return true;
-            }
-        }
-        
-        return false;
+            return model.getType(method.containingTypeFqn())
+                    .map(t -> RETRY_ANNOTATIONS.stream().anyMatch(t::hasAnnotation))
+                    .orElse(false);
+        }).orElse(false);
     }
 }

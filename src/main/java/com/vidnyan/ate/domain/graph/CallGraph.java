@@ -51,7 +51,21 @@ public final class CallGraph {
     public List<CallEdge> getOutgoingCalls(String methodFqn) {
         return outgoing.getOrDefault(methodFqn, List.of());
     }
-    
+
+    /**
+     * Get all method FQNs that have outgoing calls.
+     */
+    public Set<String> getMethodsWithOutgoingCalls() {
+        return outgoing.keySet();
+    }
+
+    /**
+     * Get all methods defined in the application.
+     */
+    public Set<String> getApplicationMethods() {
+        return applicationMethods;
+    }
+
     /**
      * Get all incoming call edges to a method.
      */

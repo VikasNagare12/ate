@@ -503,12 +503,9 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
     private String buildParameterTypes(ResolvedMethodDeclaration method) {
         StringBuilder sb = new StringBuilder("(");
         for (int i = 0; i < method.getNumberOfParams(); i++) {
-            if (i > 0) sb.append(",");
-            try {
-                sb.append(method.getParam(i).getType().describe());
-            } catch (Exception e) {
-                sb.append("?");
-            }
+            if (i > 0)
+                sb.append(",");
+            sb.append("?");
         }
         sb.append(")");
         return sb.toString();
@@ -713,18 +710,28 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
     private String buildParameterSignature(
             com.github.javaparser.ast.NodeList<com.github.javaparser.ast.body.Parameter> params
     ) {
-        String paramStr = params.stream()
-                .map(p -> p.getTypeAsString())
-                .collect(Collectors.joining(","));
-        return "(" + paramStr + ")";
+        StringBuilder sb = new StringBuilder("(");
+        for (int i = 0; i < params.size(); i++) {
+            if (i > 0)
+                sb.append(",");
+            sb.append("?");
+        }
+        sb.append(")");
+        return sb.toString();
     }
     
     private String buildRawCallSignature(MethodCallExpr call) {
         String scope = call.getScope().map(s -> s.toString() + ".").orElse("");
-        String args = call.getArguments().stream()
-                .map(a -> "?")
-                .collect(Collectors.joining(","));
-        return scope + call.getNameAsString() + "(" + args + ")";
+        StringBuilder sb = new StringBuilder(scope);
+        sb.append(call.getNameAsString());
+        sb.append("(");
+        for (int i = 0; i < call.getArguments().size(); i++) {
+            if (i > 0)
+                sb.append(",");
+            sb.append("?");
+        }
+        sb.append(")");
+        return sb.toString();
     }
     
     private CallEdge.CallType determineCallType(MethodCallExpr call) {
@@ -764,8 +771,15 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             // 1. Check method parameters first
             for (MethodEntity.Parameter param : method.parameters()) {
                 if (param.name().equals(varName)) {
-                    return param.type().fullyQualifiedName() + "#" + methodName + "(" + call.getArguments().size()
-                            + ")";
+                    StringBuilder sb = new StringBuilder(param.type().fullyQualifiedName());
+                    sb.append("#").append(methodName).append("(");
+                    for (int i = 0; i < call.getArguments().size(); i++) {
+                        if (i > 0)
+                            sb.append(",");
+                        sb.append("?");
+                    }
+                    sb.append(")");
+                    return sb.toString();
                 }
             }
 
@@ -773,7 +787,15 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             String fieldFqn = containingType.fullyQualifiedName() + "#" + varName;
             FieldEntity field = fields.get(fieldFqn);
             if (field != null) {
-                return field.type().fullyQualifiedName() + "#" + methodName + "(" + call.getArguments().size() + ")";
+                StringBuilder sb = new StringBuilder(field.type().fullyQualifiedName());
+                sb.append("#").append(methodName).append("(");
+                for (int i = 0; i < call.getArguments().size(); i++) {
+                    if (i > 0)
+                        sb.append(",");
+                    sb.append("?");
+                }
+                sb.append(")");
+                return sb.toString();
             }
 
             // 3. Try SymbolSolver for the identifier itself
@@ -794,7 +816,15 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                     if (typeFqn.contains("<")) {
                         typeFqn = typeFqn.substring(0, typeFqn.indexOf('<'));
                     }
-                    return typeFqn + "#" + methodName + "(" + call.getArguments().size() + ")";
+                    StringBuilder sb = new StringBuilder(typeFqn);
+                    sb.append("#").append(methodName).append("(");
+                    for (int i = 0; i < call.getArguments().size(); i++) {
+                        if (i > 0)
+                            sb.append(",");
+                        sb.append("?");
+                    }
+                    sb.append(")");
+                    return sb.toString();
                 }
             } catch (Exception e) {
                 log.trace("Could not resolve identifier type for {}: {}", varName, e.getMessage());
