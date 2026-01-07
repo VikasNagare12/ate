@@ -8,8 +8,8 @@ import com.vidnyan.ate.domain.rule.RuleDefinition;
 import com.vidnyan.ate.domain.rule.Violation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
@@ -22,43 +22,43 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "ate.analyze.path")
 public class AnalysisCliRunner implements CommandLineRunner {
-    
+
     private final AnalyzeCodeUseCase analyzeCodeUseCase;
     private final AIAdvisor aiAdvisor;
     
+    @Value("${ate.analyze.path:}")
+    private String sourcePath;
+
     @Override
     public void run(String... args) throws Exception {
-        String sourcePath = System.getProperty("ate.analyze.path");
         if (sourcePath == null || sourcePath.isBlank()) {
-            log.warn("No source path specified. Set ate.analyze.path property.");
+            log.info("No source path specified. Set ate.analyze.path property.");
             return;
         }
-        
         log.info("╔══════════════════════════════════════════════════════════════╗");
         log.info("║           ATE - Architectural Transaction Engine              ║");
         log.info("╠══════════════════════════════════════════════════════════════╣");
         log.info("║ Analyzing: {}", truncatePath(sourcePath, 50));
         log.info("╚══════════════════════════════════════════════════════════════╝");
-        
+
         // Run analysis
         AnalysisRequest request = AnalysisRequest.forPath(Path.of(sourcePath));
         AnalysisResult result = analyzeCodeUseCase.analyze(request);
-        
+
         // Print results
         printResults(result);
-        
+
         // Print AI advice
         if (!result.violations().isEmpty()) {
             AIAdvisor.AdviceResult advice = aiAdvisor.getAdvice(result.violations());
             printAdvice(advice);
         }
-        
+
         log.info("");
         log.info("Analysis complete!");
     }
-    
+
     private void printResults(AnalysisResult result) {
         log.info("");
         log.info("═══════════════════════════════════════════════════════════════");
@@ -70,29 +70,29 @@ public class AnalysisCliRunner implements CommandLineRunner {
         log.info(" Rules evaluated:  {}", result.stats().rulesEvaluated());
         log.info(" Duration:         {}ms", result.stats().totalDurationMs());
         log.info("───────────────────────────────────────────────────────────────");
-        
+
         int blockers = result.violationCount(RuleDefinition.Severity.BLOCKER);
         int errors = result.violationCount(RuleDefinition.Severity.ERROR);
         int warnings = result.violationCount(RuleDefinition.Severity.WARN);
         int infos = result.violationCount(RuleDefinition.Severity.INFO);
-        
+
         log.info(" VIOLATIONS:");
         log.info("   🔴 Blockers: {}", blockers);
         log.info("   🟠 Errors:   {}", errors);
         log.info("   🟡 Warnings: {}", warnings);
         log.info("   🔵 Info:     {}", infos);
         log.info("═══════════════════════════════════════════════════════════════");
-        
+
         if (result.violations().isEmpty()) {
             log.info("");
             log.info("✅ No violations found! Your code is clean.");
             return;
         }
-        
+
         log.info("");
         log.info(" VIOLATION DETAILS:");
         log.info("───────────────────────────────────────────────────────────────");
-        
+
         int count = 0;
         for (Violation v : result.violations()) {
             count++;
@@ -100,14 +100,14 @@ public class AnalysisCliRunner implements CommandLineRunner {
                 log.info(" ... and {} more violations", result.violations().size() - 10);
                 break;
             }
-            
+
             String severity = switch (v.severity()) {
                 case BLOCKER -> "🔴 BLOCKER";
                 case ERROR -> "🟠 ERROR";
                 case WARN -> "🟡 WARN";
                 case INFO -> "🔵 INFO";
             };
-            
+
             log.info("");
             log.info(" {} [{}]", severity, v.ruleId());
             log.info(" Location: {}", v.location() != null ? v.location().format() : "unknown");
@@ -117,7 +117,7 @@ public class AnalysisCliRunner implements CommandLineRunner {
             }
         }
     }
-    
+
     private void printAdvice(AIAdvisor.AdviceResult advice) {
         log.info("");
         log.info("═══════════════════════════════════════════════════════════════");
@@ -125,19 +125,20 @@ public class AnalysisCliRunner implements CommandLineRunner {
         log.info("═══════════════════════════════════════════════════════════════");
         log.info(" {}", advice.summary());
         log.info("───────────────────────────────────────────────────────────────");
-        
+
         for (AIAdvisor.Recommendation rec : advice.recommendations()) {
             log.info("");
             log.info(" 💡 {}", rec.explanation());
             log.info("    Fix: {}", rec.suggestedFix());
         }
-        
+
         log.info("");
         log.info(" ⚠️  {}", advice.disclaimer());
     }
-    
+
     private String truncatePath(String path, int maxLen) {
-        if (path.length() <= maxLen) return path;
+        if (path.length() <= maxLen)
+            return path;
         return "..." + path.substring(path.length() - maxLen + 3);
     }
 }

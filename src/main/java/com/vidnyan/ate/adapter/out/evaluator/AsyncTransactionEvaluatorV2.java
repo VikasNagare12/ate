@@ -4,7 +4,7 @@ import com.vidnyan.ate.domain.model.MethodEntity;
 import com.vidnyan.ate.domain.model.SourceModel;
 import com.vidnyan.ate.domain.rule.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.annotation.Order;
+
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -18,7 +18,7 @@ import java.util.List;
  */
 @Slf4j
 @Component
-@Order(11)
+
 public class AsyncTransactionEvaluatorV2 implements RuleEvaluator {
     
     private static final String ASYNC = "Async";
@@ -26,8 +26,8 @@ public class AsyncTransactionEvaluatorV2 implements RuleEvaluator {
     
     @Override
     public boolean supports(RuleDefinition rule) {
-        return "ASYNC-TX-001".equals(rule.id()) 
-                || RuleDefinition.Category.ASYNC_SAFETY == rule.category();
+        // Only match the specific async-transaction rule
+        return "ASYNC-TX-001".equals(rule.id());
     }
     
     @Override

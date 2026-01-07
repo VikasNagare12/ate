@@ -6,7 +6,7 @@ import com.vidnyan.ate.domain.model.MethodEntity;
 import com.vidnyan.ate.domain.model.SourceModel;
 import com.vidnyan.ate.domain.rule.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.annotation.Order;
+
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -25,7 +25,7 @@ import java.util.List;
  */
 @Slf4j
 @Component
-@Order(1)
+
 public class PathReachabilityEvaluator implements RuleEvaluator {
     
     private static final int MAX_DEPTH = 50;

@@ -6,7 +6,6 @@ import com.vidnyan.ate.domain.model.MethodEntity;
 import com.vidnyan.ate.domain.model.SourceModel;
 import com.vidnyan.ate.domain.rule.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -21,12 +20,13 @@ import java.util.Set;
  */
 @Slf4j
 @Component
-@Order(15)
 public class ThreadManagementEvaluator implements RuleEvaluator {
     
     private static final Set<String> THREAD_CREATION_PATTERNS = Set.of(
             "java.lang.Thread#<init>",
-            "java.lang.Thread#start"
+            "java.lang.Thread#<init>()",
+            "java.lang.Thread#start",
+            "java.lang.Thread#start()"
     );
     
     private static final Set<String> EXECUTOR_PATTERNS = Set.of(
@@ -48,7 +48,7 @@ public class ThreadManagementEvaluator implements RuleEvaluator {
         CallGraph callGraph = context.callGraph();
         RuleDefinition rule = context.rule();
         
-        log.debug("Evaluating direct Thread creation");
+        log.info("ThreadManagementEvaluator: Evaluating rule {}", rule.id());
         
         List<Violation> violations = new ArrayList<>();
         int nodesAnalyzed = 0;
@@ -58,11 +58,15 @@ public class ThreadManagementEvaluator implements RuleEvaluator {
             nodesAnalyzed++;
             
             for (CallEdge edge : callGraph.getOutgoingCalls(method.fullyQualifiedName())) {
-                String callee = edge.effectiveCalleeFqn();
-                if (callee == null) continue;
+                // Log all constructor calls for debugging
+                if (edge.callType() == CallEdge.CallType.CONSTRUCTOR) {
+                    log.info("  Constructor: raw='{}', resolved='{}'",
+                            edge.calleeFqn(), edge.resolvedCalleeFqn());
+                }
                 
                 // Check for direct Thread creation
-                if (isDirectThreadCreation(callee)) {
+                if (isDirectThreadCreation(edge)) {
+                    log.info("  VIOLATION: Thread creation in {}", method.simpleName());
                     violations.add(Violation.builder()
                             .ruleId(rule.id())
                             .ruleName(rule.name())
@@ -73,29 +77,34 @@ public class ThreadManagementEvaluator implements RuleEvaluator {
                                     method.simpleName()
                             ))
                             .location(edge.location())
-                            .callChain(List.of(method.fullyQualifiedName(), callee))
+                            .callChain(List.of(method.fullyQualifiedName(), edge.effectiveCalleeFqn()))
                             .build());
                 }
             }
         }
         
+        log.info("ThreadManagementEvaluator: Found {} violations in {} methods",
+                violations.size(), nodesAnalyzed);
+
         Duration duration = Duration.between(start, Instant.now());
         return EvaluationResult.success(rule.id(), violations, duration, nodesAnalyzed);
     }
     
-    private boolean isDirectThreadCreation(String calleeFqn) {
-        for (String pattern : THREAD_CREATION_PATTERNS) {
-            if (calleeFqn.startsWith(pattern) || calleeFqn.contains("Thread#<init>") 
-                    || calleeFqn.contains("Thread#start")) {
+    private boolean isDirectThreadCreation(CallEdge edge) {
+        String resolved = edge.resolvedCalleeFqn();
+        String raw = edge.calleeFqn();
+
+        // Check resolved FQN
+        if (resolved != null && THREAD_CREATION_PATTERNS.contains(resolved)) {
+            log.debug("Found Thread creation (resolved): {}", resolved);
                 return true;
-            }
         }
         
-        // Also check for new Thread() constructor calls
-        if (calleeFqn.contains("java.lang.Thread")) {
+        // Check raw callee (for unresolved cases)
+        if (raw != null && raw.contains("new Thread") || raw.startsWith("Thread.")) {
+            log.debug("Found Thread creation (raw): {}", raw);
             return true;
-        }
-        
+            }
         return false;
     }
 }

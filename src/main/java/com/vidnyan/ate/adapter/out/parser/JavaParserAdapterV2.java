@@ -389,6 +389,41 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 
                 callEdges.add(edge);
             }
+
+            @Override
+            public void visit(ObjectCreationExpr creation, Void arg) {
+                super.visit(creation, arg);
+
+                String resolvedCalleeFqn = null;
+                String typeName = creation.getType().getNameAsString();
+
+                // Try to resolve the constructor call
+                try {
+                    var resolved = creation.resolve();
+                    String declaringType = resolved.declaringType().getQualifiedName();
+                    resolvedCalleeFqn = declaringType + "#<init>()";
+                    resolvedCalls.incrementAndGet();
+                } catch (Exception e) {
+                    // Fallback: use simple type name
+                    unresolvedCalls.incrementAndGet();
+                    log.trace("Could not resolve constructor: {}: {}", typeName, e.getMessage());
+                }
+
+                // Build raw callee signature
+                String rawCallee = "new " + typeName + "()";
+
+                CallEdge edge = CallEdge.builder()
+                        .caller(method.fullyQualifiedName())
+                        .callee(rawCallee)
+                        .resolvedCallee(resolvedCalleeFqn)
+                        .callType(CallEdge.CallType.CONSTRUCTOR)
+                        .location(Location.at(filePath,
+                                creation.getBegin().map(p -> p.line).orElse(0),
+                                creation.getBegin().map(p -> p.column).orElse(0)))
+                        .build();
+
+                callEdges.add(edge);
+            }
         }, null));
     }
     

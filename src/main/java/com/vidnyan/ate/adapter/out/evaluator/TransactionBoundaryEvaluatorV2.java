@@ -6,7 +6,7 @@ import com.vidnyan.ate.domain.model.MethodEntity;
 import com.vidnyan.ate.domain.model.SourceModel;
 import com.vidnyan.ate.domain.rule.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.annotation.Order;
+
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -21,7 +21,7 @@ import java.util.Set;
  */
 @Slf4j
 @Component
-@Order(10)
+
 public class TransactionBoundaryEvaluatorV2 implements RuleEvaluator {
     
     private static final String TRANSACTIONAL = "Transactional";

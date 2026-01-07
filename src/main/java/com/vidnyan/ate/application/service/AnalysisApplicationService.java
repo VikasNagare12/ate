@@ -79,12 +79,14 @@ public class AnalysisApplicationService implements AnalyzeCodeUseCase {
         List<Violation> allViolations = new ArrayList<>();
         
         for (RuleDefinition rule : rules) {
+                log.info("  Processing rule: {}", rule.id());
             EvaluationContext context = EvaluationContext.of(
                     rule, sourceModel, callGraph, dependencyGraph);
             
             // Find matching evaluator
             RuleEvaluator evaluator = findEvaluator(rule);
             if (evaluator != null) {
+                    log.info("    Found evaluator: {}", evaluator.getClass().getSimpleName());
                 try {
                     EvaluationResult result = evaluator.evaluate(context);
                     ruleResults.add(result);

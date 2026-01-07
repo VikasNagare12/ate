@@ -6,7 +6,7 @@ import com.vidnyan.ate.domain.model.MethodEntity;
 import com.vidnyan.ate.domain.model.SourceModel;
 import com.vidnyan.ate.domain.rule.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.annotation.Order;
+
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -22,7 +22,7 @@ import java.util.Set;
  */
 @Slf4j
 @Component
-@Order(12)
+
 public class JdbcRetrySafetyEvaluatorV2 implements RuleEvaluator {
     
     private static final Set<String> JDBC_TYPES = Set.of(

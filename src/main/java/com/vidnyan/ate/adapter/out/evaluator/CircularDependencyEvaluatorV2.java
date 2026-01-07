@@ -4,7 +4,7 @@ import com.vidnyan.ate.domain.graph.DependencyGraph;
 import com.vidnyan.ate.domain.model.Location;
 import com.vidnyan.ate.domain.rule.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.annotation.Order;
+
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -19,7 +19,7 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-@Order(20)
+
 public class CircularDependencyEvaluatorV2 implements RuleEvaluator {
     
     @Override
