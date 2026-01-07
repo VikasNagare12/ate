@@ -47,13 +47,14 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         // Add ReflectionTypeSolver for JDK classes (java.*, javax.*, etc.)
         combinedTypeSolver.add(new ReflectionTypeSolver());
         
-        // Add JavaParserTypeSolver for source files
-        combinedTypeSolver.add(new JavaParserTypeSolver(sourcePath));
-        
-        // Add common source directories if they exist
+        // Add common source directories first (highest priority)
         addSourceDirIfExists(combinedTypeSolver, sourcePath.resolve("src/main/java"));
+        addSourceDirIfExists(combinedTypeSolver, sourcePath.resolve("src/test/java"));
         addSourceDirIfExists(combinedTypeSolver, sourcePath.resolve("src"));
         
+        // Final fallback: the provided source path itself
+        combinedTypeSolver.add(new JavaParserTypeSolver(sourcePath));
+
         // Try to add JARs from project's classpath (Maven/Gradle dependencies)
         addProjectDependencies(combinedTypeSolver, sourcePath);
 
@@ -138,6 +139,24 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
      * Checks common locations: lib/, target/dependency/, target/lib/
      */
     private void addProjectDependencies(CombinedTypeSolver solver, Path sourcePath) {
+        // 1. Add current classpath jars (allows resolving Spring, JDBC, etc. if this
+        // tool is running with them)
+        String classpath = System.getProperty("java.class.path");
+        if (classpath != null) {
+            String separator = System.getProperty("path.separator");
+            String[] entries = classpath.split(separator);
+            for (String entry : entries) {
+                if (entry.endsWith(".jar")) {
+                    try {
+                        solver.add(new JarTypeSolver(entry));
+                    } catch (Exception e) {
+                        // Ignore non-jar or invalid entries
+                    }
+                }
+            }
+        }
+
+        // 2. Add jars from common project locations
         List<Path> commonJarLocations = List.of(
                 sourcePath.resolve("lib"),
                 sourcePath.resolve("target/dependency"),
@@ -169,9 +188,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         }
 
         if (jarsAdded > 0) {
-            log.info("Automatically added {} JAR dependencies to SymbolSolver", jarsAdded);
-        } else {
-            log.debug("No JAR dependencies found in common locations. Resolution might be limited.");
+            log.info("Automatically added {} project JAR dependencies to SymbolSolver", jarsAdded);
         }
     }
 
@@ -352,8 +369,9 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         List<MethodEntity.Parameter> parameters = md.getParameters().stream()
                 .map(p -> new MethodEntity.Parameter(
                         p.getNameAsString(),
-                        resolveTypeRef(p.getTypeAsString(), imports, containingType.packageName()),
-                        extractAnnotationsWithFqn(p.getAnnotations())
+                        resolveTypeWithSymbolSolver(p.getType(), imports, containingType.packageName()),
+                        extractAnnotationsWithFqn(p
+                                .getAnnotations())
                 ))
                 .toList();
         
@@ -746,7 +764,8 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             // 1. Check method parameters first
             for (MethodEntity.Parameter param : method.parameters()) {
                 if (param.name().equals(varName)) {
-                    return param.type().fullyQualifiedName() + "#" + methodName + "()";
+                    return param.type().fullyQualifiedName() + "#" + methodName + "(" + call.getArguments().size()
+                            + ")";
                 }
             }
 
@@ -754,7 +773,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             String fieldFqn = containingType.fullyQualifiedName() + "#" + varName;
             FieldEntity field = fields.get(fieldFqn);
             if (field != null) {
-                return field.type().fullyQualifiedName() + "#" + methodName + "()";
+                return field.type().fullyQualifiedName() + "#" + methodName + "(" + call.getArguments().size() + ")";
             }
 
             // 3. Try SymbolSolver for the identifier itself
@@ -775,7 +794,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                     if (typeFqn.contains("<")) {
                         typeFqn = typeFqn.substring(0, typeFqn.indexOf('<'));
                     }
-                    return typeFqn + "#" + methodName + "()";
+                    return typeFqn + "#" + methodName + "(" + call.getArguments().size() + ")";
                 }
             } catch (Exception e) {
                 log.trace("Could not resolve identifier type for {}: {}", varName, e.getMessage());
@@ -795,7 +814,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         // Check if scope looks like a class name (for static calls)
         if (Character.isUpperCase(scopeName.charAt(0))) {
             String typeFqn = imports.getOrDefault(scopeName, scopeName);
-            return typeFqn + "#" + methodName + "()";
+            return typeFqn + "#" + methodName + "(" + call.getArguments().size() + ")";
         }
 
         return null;

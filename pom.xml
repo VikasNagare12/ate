@@ -78,6 +78,19 @@
 			<artifactId>commons-io</artifactId>
 			<version>2.15.1</version>
 		</dependency>
+		
+		<!-- Spring JDBC for test examples -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-jdbc</artifactId>
+		</dependency>
+		
+		<!-- Spring Retry for test examples -->
+		<dependency>
+			<groupId>org.springframework.retry</groupId>
+			<artifactId>spring-retry</artifactId>
+			<version>2.0.5</version>
+		</dependency>
 	</dependencies>
 
 	<build>
