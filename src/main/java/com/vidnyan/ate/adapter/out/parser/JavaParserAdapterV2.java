@@ -11,6 +11,7 @@ import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.github.javaparser.resolution.types.ResolvedType;
 import com.github.javaparser.symbolsolver.JavaSymbolSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import com.vidnyan.ate.application.port.out.SourceCodeParser;
@@ -53,6 +54,9 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         addSourceDirIfExists(combinedTypeSolver, sourcePath.resolve("src/main/java"));
         addSourceDirIfExists(combinedTypeSolver, sourcePath.resolve("src"));
         
+        // Try to add JARs from project's classpath (Maven/Gradle dependencies)
+        addProjectDependencies(combinedTypeSolver, sourcePath);
+
         // Create JavaSymbolSolver and configure parser
         JavaSymbolSolver symbolSolver = new JavaSymbolSolver(combinedTypeSolver);
         ParserConfiguration config = new ParserConfiguration()
@@ -129,6 +133,48 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         }
     }
     
+    /**
+     * Automatically discover and add JAR dependencies to the type solver.
+     * Checks common locations: lib/, target/dependency/, target/lib/
+     */
+    private void addProjectDependencies(CombinedTypeSolver solver, Path sourcePath) {
+        List<Path> commonJarLocations = List.of(
+                sourcePath.resolve("lib"),
+                sourcePath.resolve("target/dependency"),
+                sourcePath.resolve("target/lib"),
+                sourcePath.resolve("build/libs") // Gradle
+        );
+
+        int jarsAdded = 0;
+        for (Path location : commonJarLocations) {
+            if (Files.exists(location) && Files.isDirectory(location)) {
+                try (Stream<Path> paths = Files.walk(location)) {
+                    List<Path> jars = paths
+                            .filter(Files::isRegularFile)
+                            .filter(p -> p.toString().endsWith(".jar"))
+                            .toList();
+
+                    for (Path jar : jars) {
+                        try {
+                            solver.add(new JarTypeSolver(jar));
+                            jarsAdded++;
+                        } catch (IOException e) {
+                            log.debug("Could not add JAR to solver: {}", jar);
+                        }
+                    }
+                } catch (IOException e) {
+                    log.debug("Failed to scan JAR location: {}", location);
+                }
+            }
+        }
+
+        if (jarsAdded > 0) {
+            log.info("Automatically added {} JAR dependencies to SymbolSolver", jarsAdded);
+        } else {
+            log.debug("No JAR dependencies found in common locations. Resolution might be limited.");
+        }
+    }
+
     private List<Path> collectJavaFiles(Path sourcePath, ParsingOptions options) {
         try (Stream<Path> paths = Files.walk(sourcePath)) {
             return paths
@@ -249,21 +295,22 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         );
         types.put(typeFqn, typeEntity);
         
+        // Process fields first so we can resolve field types in methods
+        td.getFields().forEach(field -> {
+            processField(field, typeEntity, filePath, imports, fields);
+        });
+
         // Process methods with enhanced call resolution
         td.getMethods().forEach(method -> {
             processMethodWithSymbolResolver(method, typeEntity, filePath, imports, 
-                    methods, callEdges, resolvedCalls, unresolvedCalls);
-        });
-        
-        // Process fields
-        td.getFields().forEach(field -> {
-            processField(field, typeEntity, filePath, imports, fields);
+                    methods, callEdges, resolvedCalls, unresolvedCalls, fields);
         });
         
         // Process constructors
         if (td instanceof ClassOrInterfaceDeclaration cid) {
             cid.getConstructors().forEach(ctor -> {
-                processConstructor(ctor, typeEntity, filePath, imports, methods);
+                processConstructor(ctor, typeEntity, filePath, imports, methods,
+                        callEdges, resolvedCalls, unresolvedCalls, fields);
             });
         }
     }
@@ -296,7 +343,8 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             Map<String, MethodEntity> methods,
             List<CallEdge> callEdges,
             AtomicInteger resolvedCalls,
-            AtomicInteger unresolvedCalls
+            AtomicInteger unresolvedCalls,
+            Map<String, FieldEntity> fields
     ) {
         String methodFqn = containingType.fullyQualifiedName() + "#" + buildMethodSignature(md);
         
@@ -342,21 +390,23 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         
         // Extract method calls using Symbol Solver
         if (md.getBody().isPresent()) {
-            extractMethodCallsWithSymbolSolver(md, methodEntity, containingType, filePath,
-                    callEdges, resolvedCalls, unresolvedCalls);
+            extractMethodCallsWithSymbolSolver(md.getBody().get(), methodEntity, containingType, filePath,
+                    callEdges, resolvedCalls, unresolvedCalls, imports, fields);
         }
     }
     
     private void extractMethodCallsWithSymbolSolver(
-            MethodDeclaration md,
-            MethodEntity method,
+            com.github.javaparser.ast.Node bodyNode,
+                    MethodEntity method,
             TypeEntity containingType,
             String filePath,
             List<CallEdge> callEdges,
             AtomicInteger resolvedCalls,
-            AtomicInteger unresolvedCalls
+            AtomicInteger unresolvedCalls,
+            Map<String, String> imports,
+            Map<String, FieldEntity> fields
     ) {
-        md.getBody().ifPresent(body -> body.accept(new VoidVisitorAdapter<Void>() {
+        bodyNode.accept(new VoidVisitorAdapter<Void>() {
             
             @Override
             public void visit(MethodCallExpr call, Void arg) {
@@ -372,9 +422,14 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                     resolvedCalleeFqn = declaringType + "#" + signature;
                     resolvedCalls.incrementAndGet();
                 } catch (Exception e) {
-                    // Fallback: couldn't resolve, will be null
-                    unresolvedCalls.incrementAndGet();
-                    log.trace("Could not resolve: {}: {}", call.getNameAsString(), e.getMessage());
+                    // Fallback: try to resolve using scope, field types, and parameters
+                    resolvedCalleeFqn = tryFallbackResolution(call, containingType, method, imports, fields);
+                    if (resolvedCalleeFqn != null) {
+                        resolvedCalls.incrementAndGet();
+                    } else {
+                        unresolvedCalls.incrementAndGet();
+                        log.trace("Could not resolve: {}: {}", call.getNameAsString(), e.getMessage());
+                    }
                 }
                 
                 CallEdge edge = CallEdge.builder()
@@ -424,7 +479,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
 
                 callEdges.add(edge);
             }
-        }, null));
+        }, null);
     }
     
     private String buildParameterTypes(ResolvedMethodDeclaration method) {
@@ -448,7 +503,11 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             TypeEntity containingType,
             String filePath,
             Map<String, String> imports,
-            Map<String, MethodEntity> methods
+            Map<String, MethodEntity> methods,
+            List<CallEdge> callEdges,
+            AtomicInteger resolvedCalls,
+            AtomicInteger unresolvedCalls,
+            Map<String, FieldEntity> fields
     ) {
         String ctorFqn = containingType.fullyQualifiedName() + "#<init>" + 
                 buildParameterSignature(cd.getParameters());
@@ -475,6 +534,10 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                         cd.getBegin().map(p -> p.column).orElse(0))
         );
         methods.put(ctorFqn, ctorEntity);
+
+        // Extract method calls from constructor body
+        extractMethodCallsWithSymbolSolver(cd, ctorEntity, containingType, filePath,
+                callEdges, resolvedCalls, unresolvedCalls, imports, fields);
     }
     
     private void processField(
@@ -651,5 +714,90 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             return CallEdge.CallType.DIRECT;
         }
         return CallEdge.CallType.VIRTUAL;
+    }
+
+    /**
+     * Fallback resolution using scope field type and imports.
+     * Used when SymbolSolver fails to resolve a method call.
+     */
+    private String tryFallbackResolution(
+            MethodCallExpr call,
+            TypeEntity containingType,
+            MethodEntity method,
+            Map<String, String> imports,
+            Map<String, FieldEntity> fields) {
+        // Only works if we have a scope (e.g., jdbcTemplate.update())
+        if (call.getScope().isEmpty()) {
+            return null;
+        }
+
+        String scopeName = call.getScope().get().toString();
+        String methodName = call.getNameAsString();
+
+        // Check if scope is "this" - method on same class
+        if ("this".equals(scopeName)) {
+            return containingType.fullyQualifiedName() + "#" + methodName + "()";
+        }
+
+        // Check if scope is a simple identifier (variable name)
+        if (call.getScope().get().isNameExpr()) {
+            String varName = scopeName;
+
+            // 1. Check method parameters first
+            for (MethodEntity.Parameter param : method.parameters()) {
+                if (param.name().equals(varName)) {
+                    return param.type().fullyQualifiedName() + "#" + methodName + "()";
+                }
+            }
+
+            // 2. Check class fields using the fields map
+            String fieldFqn = containingType.fullyQualifiedName() + "#" + varName;
+            FieldEntity field = fields.get(fieldFqn);
+            if (field != null) {
+                return field.type().fullyQualifiedName() + "#" + methodName + "()";
+            }
+
+            // 3. Try SymbolSolver for the identifier itself
+            try {
+                var resolved = call.getScope().get().asNameExpr().resolve();
+                String typeFqn = null;
+                if (resolved.isField()) {
+                    typeFqn = resolved.asField().getType().describe();
+                } else if (resolved.isParameter()) {
+                    typeFqn = resolved.asParameter().getType().describe();
+                } else {
+                    // Handle local variables and other value declarations
+                    typeFqn = resolved.getType().describe();
+                }
+
+                if (typeFqn != null) {
+                    // Clean up generics
+                    if (typeFqn.contains("<")) {
+                        typeFqn = typeFqn.substring(0, typeFqn.indexOf('<'));
+                    }
+                    return typeFqn + "#" + methodName + "()";
+                }
+            } catch (Exception e) {
+                log.trace("Could not resolve identifier type for {}: {}", varName, e.getMessage());
+            }
+
+            // 4. Fallback: try to find type from imports using naming convention (e.g.,
+            // jdbcTemplate -> JdbcTemplate)
+            if (varName.length() > 0) {
+                String typeName = Character.toUpperCase(varName.charAt(0)) + varName.substring(1);
+                String fqn = imports.get(typeName);
+                if (fqn != null) {
+                    return fqn + "#" + methodName + "()";
+                }
+            }
+        }
+
+        // Check if scope looks like a class name (for static calls)
+        if (Character.isUpperCase(scopeName.charAt(0))) {
+            String typeFqn = imports.getOrDefault(scopeName, scopeName);
+            return typeFqn + "#" + methodName + "()";
+        }
+
+        return null;
     }
 }
