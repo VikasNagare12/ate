@@ -39,8 +39,7 @@ public class TransactionBoundaryEvaluatorV2 implements RuleEvaluator {
     
     @Override
     public boolean supports(RuleDefinition rule) {
-        return "TX-BOUNDARY-001".equals(rule.id()) 
-                || RuleDefinition.Category.TRANSACTION_SAFETY == rule.category();
+        return "TX-BOUNDARY-001".equals(rule.id());
     }
     
     @Override

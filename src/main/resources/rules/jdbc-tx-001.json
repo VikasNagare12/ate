@@ -1,0 +1,37 @@
+{
+  "id": "JDBC-TX-001",
+  "name": "JDBC Operations Must Be Transactional",
+  "description": "All database operations (JDBC, JPA) must be executed within an active transaction context (@Transactional) to ensure data consistency and atomicity.",
+  "severity": "CRITICAL",
+  "category": "TRANSACTION_SAFETY",
+  "detection": {
+    "entryPoints": {
+      "annotations": [],
+      "types": [],
+      "methodPatterns": []
+    },
+    "sinks": {
+      "annotations": [],
+      "types": [
+        "org.springframework.jdbc.core.JdbcTemplate",
+        "org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate",
+        "org.springframework.data.jpa.repository.JpaRepository",
+        "javax.persistence.EntityManager",
+        "jakarta.persistence.EntityManager"
+      ],
+      "methodPatterns": []
+    },
+    "pathConstraints": {
+      "mustContain": [],
+      "mustNotContain": [],
+      "maxDepth": 30
+    }
+  },
+  "remediation": {
+    "quickFix": "Annotate the method or its class with @Transactional",
+    "explanation": "Database modifications performed without a transaction can lead to partial updates and corrupted data states if an error occurs. Always wrap related DB operations in a transaction.",
+    "references": [
+      "https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative.html"
+    ]
+  }
+}
