@@ -363,8 +363,16 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         try {
             ResolvedType resolved = type.resolve();
             String fqn = resolved.describe();
-            // Clean up generics for base type
-            String baseFqn = fqn.contains("<") ? fqn.substring(0, fqn.indexOf('<')) : fqn;
+            // Clean up generics for base type but preserve array dimensions
+            String baseFqn = fqn;
+            if (fqn.contains("<")) {
+                int arrayStart = fqn.indexOf('['); // Check for array dimensions like List<String>[]
+                String modifiers = "";
+                if (arrayStart > 0 && arrayStart > fqn.indexOf('>')) {
+                    modifiers = fqn.substring(arrayStart);
+                }
+                baseFqn = fqn.substring(0, fqn.indexOf('<')) + modifiers;
+            }
             String simpleName = baseFqn.contains(".") 
                     ? baseFqn.substring(baseFqn.lastIndexOf('.') + 1) 
                     : baseFqn;
@@ -540,8 +548,18 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             if (i > 0)
                 sb.append(",");
             try {
-                // Use describe() to get the full type name
-                sb.append(method.getParam(i).getType().describe());
+                // Use describe() to get the full type name, then strip generics but keep array
+                // dims
+                String fullType = method.getParam(i).getType().describe();
+                if (fullType.contains("<")) {
+                    int arrayStart = fullType.indexOf('[');
+                    String modifiers = "";
+                    if (arrayStart > 0 && arrayStart > fullType.indexOf('>')) {
+                        modifiers = fullType.substring(arrayStart);
+                    }
+                    fullType = fullType.substring(0, fullType.indexOf('<')) + modifiers;
+                }
+                sb.append(fullType);
             } catch (Exception e) {
                 sb.append("?");
             }
@@ -557,7 +575,16 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             if (i > 0)
                 sb.append(",");
             try {
-                sb.append(ctor.getParam(i).getType().describe());
+                String fullType = ctor.getParam(i).getType().describe();
+                if (fullType.contains("<")) {
+                    int arrayStart = fullType.indexOf('[');
+                    String modifiers = "";
+                    if (arrayStart > 0 && arrayStart > fullType.indexOf('>')) {
+                        modifiers = fullType.substring(arrayStart);
+                    }
+                    fullType = fullType.substring(0, fullType.indexOf('<')) + modifiers;
+                }
+                sb.append(fullType);
             } catch (Exception e) {
                 sb.append("?");
             }
