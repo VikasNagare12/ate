@@ -147,14 +147,58 @@ public class SameTableUpdateEvaluator implements RuleEvaluator {
                                 .add(new UpdateOperation(edge.location(), fullChain));
                     }
                 } else if (callGraph.isApplicationMethod(callee)) {
-                    // Continue traversal with resolved arguments
-                    traverseAndCollectUpdates(callee, callGraph, model, currentPath, tableUpdates, depth + 1,
+                    // Find target methods (exact or fuzzy match)
+                            List<String> targets = findMethods(model, callee);
+
+                    for (String targetFqn : targets) {
+                        traverseAndCollectUpdates(targetFqn, callGraph, model, currentPath, tableUpdates, depth + 1,
                             resolvedArguments, currentChain);
+                     }
                 }
             }
         } finally {
             currentPath.remove(currentMethodFqn); // Allow revisiting from other paths
         }
+    }
+
+    private List<String> findMethods(SourceModel model, String calleeFqn) {
+        // 1. Try exact match
+        if (model.getMethod(calleeFqn).isPresent()) {
+            return List.of(calleeFqn);
+        }
+
+        // 2. Fuzzy match (if callee has '?' or missing types)
+        // Parse callee to get type and method name
+        int hashIdx = calleeFqn.lastIndexOf('#');
+        if (hashIdx == -1)
+            return List.of();
+
+        String typeName = calleeFqn.substring(0, hashIdx);
+        String signature = calleeFqn.substring(hashIdx + 1);
+
+        String methodName;
+        int paramCount = 0;
+
+        if (signature.contains("(")) {
+            methodName = signature.substring(0, signature.indexOf('('));
+            String params = signature.substring(signature.indexOf('(') + 1, signature.lastIndexOf(')'));
+            if (!params.isEmpty()) {
+                paramCount = params.split(",").length;
+            }
+        } else {
+            methodName = signature;
+        }
+
+        // Search in model
+        final String searchMethodName = methodName;
+        final int searchParamCount = paramCount;
+
+        return model.methods().values().stream()
+                .filter(m -> m.containingTypeFqn().equals(typeName))
+                .filter(m -> m.simpleName().equals(searchMethodName))
+                .filter(m -> m.parameters().size() == searchParamCount)
+                .map(com.vidnyan.ate.domain.model.MethodEntity::fullyQualifiedName)
+                .collect(Collectors.toList());
     }
 
     private String getSimpleMethodName(String fqn) {

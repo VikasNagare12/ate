@@ -386,9 +386,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             AtomicInteger unresolvedCalls,
             Map<String, FieldEntity> fields
     ) {
-        String methodFqn = containingType.fullyQualifiedName() + "#" + buildMethodSignature(md);
-        
-        // Extract parameters
+        // Extract parameters (resolve types first)
         List<MethodEntity.Parameter> parameters = md.getParameters().stream()
                 .map(p -> new MethodEntity.Parameter(
                         p.getNameAsString(),
@@ -398,6 +396,14 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 ))
                 .toList();
         
+        // Build signature using resolved parameter types
+        String signature = md.getNameAsString() + "(" +
+                parameters.stream()
+                        .map(p -> p.type().fullyQualifiedName())
+                        .collect(Collectors.joining(","))
+                + ")";
+        String methodFqn = containingType.fullyQualifiedName() + "#" + signature;
+
         // Resolve return type
         TypeRef returnType;
         try {
@@ -502,7 +508,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 try {
                     var resolved = creation.resolve();
                     String declaringType = resolved.declaringType().getQualifiedName();
-                    resolvedCalleeFqn = declaringType + "#<init>()";
+                    resolvedCalleeFqn = declaringType + "#<init>" + buildParameterTypes(resolved);
                     resolvedCalls.incrementAndGet();
                 } catch (Exception e) {
                     // Fallback: use simple type name
@@ -533,7 +539,28 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         for (int i = 0; i < method.getNumberOfParams(); i++) {
             if (i > 0)
                 sb.append(",");
-            sb.append("?");
+            try {
+                // Use describe() to get the full type name
+                sb.append(method.getParam(i).getType().describe());
+            } catch (Exception e) {
+                sb.append("?");
+            }
+        }
+        sb.append(")");
+        return sb.toString();
+    }
+
+    private String buildParameterTypes(
+            com.github.javaparser.resolution.declarations.ResolvedConstructorDeclaration ctor) {
+        StringBuilder sb = new StringBuilder("(");
+        for (int i = 0; i < ctor.getNumberOfParams(); i++) {
+            if (i > 0)
+                sb.append(",");
+            try {
+                sb.append(ctor.getParam(i).getType().describe());
+            } catch (Exception e) {
+                sb.append("?");
+            }
         }
         sb.append(")");
         return sb.toString();
