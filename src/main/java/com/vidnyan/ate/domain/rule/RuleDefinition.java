@@ -16,7 +16,8 @@ public record RuleDefinition(
     Category category,
     Detection detection,
     Remediation remediation,
-    Map<String, Object> config
+        Map<String, Object> config,
+        boolean isEnabled
 ) {
     
     public enum Severity {
@@ -98,6 +99,7 @@ public record RuleDefinition(
         private Detection detection;
         private Remediation remediation;
         private Map<String, Object> config = Map.of();
+        private boolean isEnabled = true;
         
         public Builder id(String id) { this.id = id; return this; }
         public Builder name(String name) { this.name = name; return this; }
@@ -107,10 +109,15 @@ public record RuleDefinition(
         public Builder detection(Detection det) { this.detection = det; return this; }
         public Builder remediation(Remediation rem) { this.remediation = rem; return this; }
         public Builder config(Map<String, Object> cfg) { this.config = cfg; return this; }
+
+        public Builder isEnabled(boolean enabled) {
+            this.isEnabled = enabled;
+            return this;
+        }
         
         public RuleDefinition build() {
             return new RuleDefinition(id, name, description, severity, category, 
-                    detection, remediation, config);
+                    detection, remediation, config, isEnabled);
         }
     }
 }

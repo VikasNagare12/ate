@@ -73,8 +73,9 @@ public class FileSystemRuleRepository implements RuleRepository {
     
     @Override
     public List<RuleDefinition> findEnabled() {
-        // All loaded rules are enabled by default
-        return findAll();
+        return rules.values().stream()
+                .filter(RuleDefinition::isEnabled)
+                .toList();
     }
     
     private RuleDefinition mapToRule(RuleDto dto) {
@@ -87,6 +88,7 @@ public class FileSystemRuleRepository implements RuleRepository {
                 .detection(mapDetection(dto.detection))
                 .remediation(mapRemediation(dto.remediation))
                 .config(dto.config != null ? dto.config : Map.of())
+                .isEnabled(dto.isEnabled != null ? dto.isEnabled : true)
                 .build();
     }
     
@@ -163,6 +165,7 @@ public class FileSystemRuleRepository implements RuleRepository {
         public DetectionDto detection;
         public RemediationDto remediation;
         public Map<String, Object> config;
+        public Boolean isEnabled;
     }
     
     static class DetectionDto {

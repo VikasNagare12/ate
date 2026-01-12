@@ -4,6 +4,7 @@
   "description": "Remote calls (HTTP, Kafka) should not be wrapped in retry logic without explicit idempotency handling, as it can lead to duplicate requests or messages if the failure occurs after the remote side has processed the request.",
   "severity": "CRITICAL",
   "category": "RETRY_SAFETY",
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": [

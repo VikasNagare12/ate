@@ -111,18 +111,53 @@ public class TransactionalJdbcEvaluator implements RuleEvaluator {
         Set<String> sinks = new HashSet<>();
         for (String callerFqn : callGraph.getMethodsWithOutgoingCalls()) {
             if (callGraph.isApplicationMethod(callerFqn)) {
-                boolean callsJdbc = callGraph.getOutgoingCalls(callerFqn).stream()
+                boolean callsJdbcWrite = callGraph.getOutgoingCalls(callerFqn).stream()
                         .anyMatch(edge -> {
                             String callee = edge.effectiveCalleeFqn();
-                            return callee != null && JDBC_TYPES.stream().anyMatch(callee::startsWith);
+                            if (callee == null)
+                                return false;
+
+                            boolean isJdbc = JDBC_TYPES.stream().anyMatch(callee::startsWith);
+                            if (!isJdbc)
+                                return false;
+
+                            // Check if it is a write operation
+                            return isWriteOperation(callee);
                         });
 
-                if (callsJdbc) {
+                if (callsJdbcWrite) {
                     sinks.add(callerFqn);
                 }
             }
         }
         return sinks;
+    }
+
+    private boolean isWriteOperation(String calleeFqn) {
+        // Extract method name
+        int hash = calleeFqn.indexOf('#');
+        // Fallback if no hash present (should vary by format, but usually Type#method
+        // or Type.method)
+        // Adjusting for common FQN formats if necessary, but standard here implies
+        // keeping simple.
+        // Assuming format is Type.method or Type#method. Let's try to find the last dot
+        // or hash.
+
+        String methodName;
+        if (hash > 0) {
+            methodName = calleeFqn.substring(hash + 1);
+        } else {
+            methodName = calleeFqn.substring(calleeFqn.lastIndexOf('.') + 1);
+        }
+
+        return methodName.startsWith("update") ||
+                methodName.startsWith("batchUpdate") ||
+                methodName.startsWith("insert") ||
+                methodName.startsWith("save") ||
+                methodName.startsWith("delete") ||
+                methodName.startsWith("persist") ||
+                methodName.startsWith("merge") ||
+                methodName.startsWith("remove");
     }
 
     private boolean hasTransactionalAnnotation(String methodFqn, SourceModel model) {

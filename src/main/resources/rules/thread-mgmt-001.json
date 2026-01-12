@@ -4,6 +4,7 @@
   "description": "Direct Thread creation bypasses Spring's thread management. Use @Async or TaskExecutor/ExecutorService instead for proper lifecycle management and monitoring.",
   "severity": "ERROR",
   "category": "ASYNC_SAFETY",
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": [],

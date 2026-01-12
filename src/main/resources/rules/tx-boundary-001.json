@@ -4,6 +4,7 @@
   "description": "Remote calls (HTTP, messaging) inside @Transactional methods can cause issues if the remote service is slow or unavailable, holding database connections and potentially causing timeouts.",
   "severity": "BLOCKER",
   "category": "TRANSACTION_SAFETY",
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": [
