@@ -2,6 +2,7 @@ package com.vidnyan.ate.adapter.out.evaluator;
 
 import com.vidnyan.ate.domain.graph.CallEdge;
 import com.vidnyan.ate.domain.graph.CallGraph;
+import com.vidnyan.ate.domain.model.Location;
 import com.vidnyan.ate.domain.model.SourceModel;
 import com.vidnyan.ate.domain.rule.*;
 import lombok.extern.slf4j.Slf4j;
@@ -54,26 +55,38 @@ public class SameTableUpdateEvaluator implements RuleEvaluator {
 
         for (String rootFqn : transactionalMethods) {
             pathsAnalyzed++;
-            Map<String, List<String>> tableUpdates = new HashMap<>();
+            Map<String, List<UpdateOperation>> tableUpdates = new HashMap<>();
 
             // Traverse call graph to find JDBC updates
             // Traverse call graph to find JDBC updates
-            traverseAndCollectUpdates(rootFqn, callGraph, model, new HashSet<>(), tableUpdates, 0, List.of());
+            // Traverse call graph to find JDBC updates
+            traverseAndCollectUpdates(rootFqn, callGraph, model, new HashSet<>(), tableUpdates, 0, List.of(),
+                    new ArrayList<>());
 
             // Check for duplicates
-            tableUpdates.forEach((tableName, locations) -> {
-                log.debug("Table '{}' updated at locations: {}", tableName, locations);
-                if (locations.size() > 1) {
+            tableUpdates.forEach((tableName, operations) -> {
+                log.debug("Table '{}' updated at locations: {}", tableName, operations.size());
+                if (operations.size() > 1) {
                     model.getMethod(rootFqn).ifPresent(rootMethod -> {
+                        StringBuilder message = new StringBuilder();
+                        message.append(String.format("Multiple updates to table '%s' detected within transaction '%s':",
+                                tableName, rootMethod.simpleName()));
+
+                        for (int i = 0; i < operations.size(); i++) {
+                            UpdateOperation op = operations.get(i);
+                            message.append(String.format("\n  %d. %s (Line %d)",
+                                    i + 1,
+                                    String.join(" -> ", op.callChain),
+                                    op.location.line()));
+                        }
+
                         violations.add(Violation.builder()
                                 .ruleId(rule.id())
                                 .ruleName(rule.name())
                                 .severity(rule.severity())
-                                .message(String.format(
-                                        "Multiple updates to table '%s' detected within transaction '%s'. Locations: %s",
-                                        tableName, rootMethod.simpleName(), locations))
+                                .message(message.toString())
                                 .location(rootMethod.location())
-                                .callChain(List.of(rootFqn)) // Simplified chain for now
+                                .callChain(List.of(rootFqn))
                                 .build());
                     });
                 }
@@ -85,8 +98,8 @@ public class SameTableUpdateEvaluator implements RuleEvaluator {
     }
 
     private void traverseAndCollectUpdates(String currentMethodFqn, CallGraph callGraph, SourceModel model,
-            Set<String> currentPath, Map<String, List<String>> tableUpdates, int depth,
-            List<String> incomingArguments) {
+            Set<String> currentPath, Map<String, List<UpdateOperation>> tableUpdates, int depth,
+            List<String> incomingArguments, List<String> callChain) {
 
         if (depth > 50)
             return; // Prevent stack overflow on deep graphs
@@ -94,6 +107,10 @@ public class SameTableUpdateEvaluator implements RuleEvaluator {
             return; // Cycle detection
 
         currentPath.add(currentMethodFqn);
+
+        // Add current method to call chain context for this path
+        List<String> currentChain = new ArrayList<>(callChain);
+        currentChain.add(getSimpleMethodName(currentMethodFqn));
 
         try {
             // Get current method parameters to map incoming arguments
@@ -123,18 +140,41 @@ public class SameTableUpdateEvaluator implements RuleEvaluator {
                 if (isJdbcUpdate(callee)) {
                     String tableName = extractTableName(resolvedArguments);
                     if (tableName != null) {
+                        List<String> fullChain = new ArrayList<>(currentChain);
+                        fullChain.add(getSimpleMethodName(callee));
+
                         tableUpdates.computeIfAbsent(tableName, k -> new ArrayList<>())
-                                .add(edge.location().toString());
+                                .add(new UpdateOperation(edge.location(), fullChain));
                     }
                 } else if (callGraph.isApplicationMethod(callee)) {
                     // Continue traversal with resolved arguments
                     traverseAndCollectUpdates(callee, callGraph, model, currentPath, tableUpdates, depth + 1,
-                            resolvedArguments);
+                            resolvedArguments, currentChain);
                 }
             }
         } finally {
             currentPath.remove(currentMethodFqn); // Allow revisiting from other paths
         }
+    }
+
+    private String getSimpleMethodName(String fqn) {
+        int hashIdx = fqn.lastIndexOf('#');
+        if (hashIdx > 0 && hashIdx < fqn.length() - 1) {
+            String className = fqn.substring(0, hashIdx);
+            String methodName = fqn.substring(hashIdx + 1);
+            int lastDot = className.lastIndexOf('.');
+            if (lastDot > 0) {
+                className = className.substring(lastDot + 1);
+            }
+            if (methodName.contains("(")) {
+                methodName = methodName.substring(0, methodName.indexOf('('));
+            }
+            return className + "." + methodName;
+        }
+        return fqn;
+    }
+
+    private record UpdateOperation(Location location, List<String> callChain) {
     }
 
     private boolean isJdbcUpdate(String calleeFqn) {
