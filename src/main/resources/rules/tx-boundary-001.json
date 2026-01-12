@@ -4,7 +4,7 @@
   "description": "Remote calls (HTTP, messaging) inside @Transactional methods can cause issues if the remote service is slow or unavailable, holding database connections and potentially causing timeouts.",
   "severity": "BLOCKER",
   "category": "TRANSACTION_SAFETY",
-  "isEnabled": false,
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": [
@@ -19,7 +19,10 @@
         "org.springframework.web.client.RestTemplate",
         "org.springframework.web.reactive.function.client.WebClient",
         "org.springframework.kafka.core.KafkaTemplate",
-        "java.net.http.HttpClient"
+        "java.net.http.HttpClient",
+        "org.apache.kafka.clients.producer.KafkaProducer",
+        "org.apache.http.client.HttpClient",
+        "feign.Client"
       ],
       "methodPatterns": []
     },

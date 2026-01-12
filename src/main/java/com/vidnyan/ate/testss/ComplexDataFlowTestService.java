@@ -18,19 +18,33 @@ public class ComplexDataFlowTestService {
     public void complexChainViolation() {
         // Source of query is a constant
         String sql = QueryConstants.UPDATE_USERS;
+        String sql1 = "UPDATE users1 SET status = 'ACTIVE'";
 
         // Update 1: Passed to another class
         executor.executeSql(sql);
 
         // Update 2: Passed to another class
-        executor.executeSql(sql);
+        executor.executeSql(sql1);
     }
 
     @Transactional
-    public void simpleViolation() {
-        // This SHOULD be detected because the called method has the SQL string literal
-        // directly
-        repository.updateUserEmail(1L, "test1@example.com");
-        repository.updateUserEmail(1L, "test2@example.com");
+    public void complexChainViolatio11n() {
+        // Source of query is a constant
+        String sql = QueryConstants.UPDATE_USERS;
+        String sql1 = "INSERT INTO users1 SET status = 'ACTIVE'";
+
+        // Update 1: Passed to another class
+        executor.executeSql(sql, new Object());
+
+        // Update 2: Passed to another class
+        executor.executeSql(sql1, new Object[]{new Object()});
     }
+
+//    @Transactional
+//    public void simpleViolation() {
+//        // This SHOULD be detected because the called method has the SQL string literal
+//        // directly
+//        repository.updateUserEmail(1L, "test1@example.com");
+//        repository.updateUserEmail(1L, "test2@example.com");
+//    }
 }

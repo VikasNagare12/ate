@@ -12,30 +12,22 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 /**
  * Evaluates transaction boundary violations.
  * Detects remote calls (HTTP, messaging) made inside @Transactional methods.
+ * 
+ * Replaces generic PathReachabilityEvaluator with specific implementation
+ * that still reads configuration from JSON.
  */
 @Slf4j
 @Component
-
 public class TransactionBoundaryEvaluatorV2 implements RuleEvaluator {
     
     private static final String TRANSACTIONAL = "Transactional";
-    private static final String TRANSACTIONAL_FQN = "org.springframework.transaction.annotation.Transactional";
-    
-    private static final Set<String> REMOTE_CALL_TYPES = Set.of(
-            "org.springframework.web.client.RestTemplate",
-            "org.springframework.web.reactive.function.client.WebClient",
-            "org.springframework.kafka.core.KafkaTemplate",
-            "org.apache.kafka.clients.producer.KafkaProducer",
-            "java.net.http.HttpClient",
-            "org.apache.http.client.HttpClient",
-            "feign.Client"
-    );
     
     @Override
     public boolean supports(RuleDefinition rule) {
@@ -49,92 +41,123 @@ public class TransactionBoundaryEvaluatorV2 implements RuleEvaluator {
         CallGraph callGraph = context.callGraph();
         RuleDefinition rule = context.rule();
         
-        log.debug("Evaluating transaction boundary violations");
+        log.debug("Evaluating rule {} with TransactionBoundaryEvaluatorV2", rule.id());
         
         List<Violation> violations = new ArrayList<>();
         int nodesAnalyzed = 0;
         
-        // Find all @Transactional methods
+        // 1. Identify Entry Points (@Transactional methods)
         List<MethodEntity> transactionalMethods = model.findMethodsWithAnnotation(TRANSACTIONAL);
         log.debug("Found {} @Transactional methods", transactionalMethods.size());
         
+        // 2. Identify Sinks (from JSON configuration)
+        Set<String> sinkTypes = new HashSet<>(rule.detection().sinks().types());
+
+        // 3. Analyze each entry point
         for (MethodEntity method : transactionalMethods) {
             nodesAnalyzed++;
             
-            // Check if any remote call is reachable
-            List<CallEdge> remoteCalls = findRemoteCalls(method.fullyQualifiedName(), callGraph);
+            // Find call chains to any method belonging to a sink type
+            List<List<String>> chains = findChainsToSinks(
+                    method.fullyQualifiedName(),
+                    sinkTypes,
+                    callGraph);
             
-            for (CallEdge remoteCall : remoteCalls) {
-                String remoteType = extractType(remoteCall.effectiveCalleeFqn());
+            for (List<String> chain : chains) {
+                // The last element in the chain is the sink method
+                String sinkMethod = chain.get(chain.size() - 1);
+                String sinkType = extractType(sinkMethod);
                 
                 violations.add(Violation.builder()
                         .ruleId(rule.id())
                         .ruleName(rule.name())
                         .severity(rule.severity())
                         .message(String.format(
-                                "@Transactional method '%s' makes remote call to %s. " +
-                                "This can hold database connections if the remote service is slow.",
-                                method.simpleName(),
-                                remoteType
+                                "@Transactional method '%s' calls %s which violates rule: %s",
+                                        method.simpleName(),
+                                sinkType,
+                                rule.name()
                         ))
                         .location(method.location())
-                        .callChain(List.of(method.fullyQualifiedName(), remoteCall.effectiveCalleeFqn()))
+                        .callChain(chain)
                         .build());
             }
         }
         
         Duration duration = Duration.between(start, Instant.now());
+        log.debug("Rule {} found {} violations in {}ms", rule.id(), violations.size(), duration.toMillis());
+
         return EvaluationResult.success(rule.id(), violations, duration, nodesAnalyzed);
     }
     
-    private List<CallEdge> findRemoteCalls(String methodFqn, CallGraph callGraph) {
-        List<CallEdge> remoteCalls = new ArrayList<>();
-        findRemoteCallsRecursive(methodFqn, callGraph, remoteCalls, new java.util.HashSet<>(), 0);
-        return remoteCalls;
+    private List<List<String>> findChainsToSinks(
+            String startMethod,
+            Set<String> sinkTypes,
+            CallGraph callGraph) {
+        List<List<String>> allChains = new ArrayList<>();
+        // Use recursive search with depth limit (similar to
+        // CallGraph.findChainsRecursive but with pattern matching)
+        findChainsToSinkRecursive(
+                startMethod,
+                sinkTypes,
+                new ArrayList<>(),
+                new HashSet<>(),
+                allChains,
+                0,
+                callGraph);
+        return allChains;
     }
     
-    private void findRemoteCallsRecursive(
+    private void findChainsToSinkRecursive(
             String current,
-            CallGraph callGraph,
-            List<CallEdge> found,
+            Set<String> sinkTypes,
+                    List<String> chain,
             Set<String> visited,
-            int depth
+            List<List<String>> allChains,
+            int depth,
+            CallGraph callGraph
     ) {
-        if (depth > 30 || visited.contains(current)) {
+        // Max depth to prevent stack overflow and performance issues
+        if (depth > 50 || visited.contains(current)) {
             return;
         }
+
+        chain.add(current);
         visited.add(current);
         
-        for (CallEdge edge : callGraph.getOutgoingCalls(current)) {
-            String callee = edge.effectiveCalleeFqn();
-            if (callee == null) continue;
-            
-            // Check if this is a remote call
-            if (isRemoteCall(callee)) {
-                found.add(edge);
-            }
-            
-            // Continue searching only in application code
-            if (callGraph.isApplicationMethod(callee)) {
-                findRemoteCallsRecursive(callee, callGraph, found, visited, depth + 1);
+        // Check if current method belongs to a sink type
+        if (isSink(current, sinkTypes)) {
+            allChains.add(new ArrayList<>(chain));
+        } else if (callGraph.isApplicationMethod(current)) {
+            // Only traverse outgoing calls if we are still in application code
+            // (Don't traverse INTO library code looking for other libraries, we stop at the
+            // boundary)
+            for (CallEdge edge : callGraph.getOutgoingCalls(current)) {
+                String callee = edge.effectiveCalleeFqn();
+                if (callee != null) {
+                    findChainsToSinkRecursive(callee, sinkTypes, chain, visited, allChains, depth + 1, callGraph);
+                }
             }
         }
+
+        chain.remove(chain.size() - 1);
+        visited.remove(current);
     }
     
-    private boolean isRemoteCall(String calleeFqn) {
-        for (String remoteType : REMOTE_CALL_TYPES) {
-            if (calleeFqn.startsWith(remoteType + "#")) {
+    private boolean isSink(String methodFqn, Set<String> sinkTypes) {
+        for (String type : sinkTypes) {
+            if (methodFqn.startsWith(type + "#") || methodFqn.startsWith(type + ".")) {
                 return true;
             }
         }
         return false;
     }
     
-    private String extractType(String fqn) {
-        if (fqn == null) return "unknown";
-        int hash = fqn.indexOf('#');
-        String type = hash > 0 ? fqn.substring(0, hash) : fqn;
-        int lastDot = type.lastIndexOf('.');
-        return lastDot > 0 ? type.substring(lastDot + 1) : type;
+    private String extractType(String methodFqn) {
+        if (methodFqn.contains("#")) {
+            String fqn = methodFqn.substring(0, methodFqn.indexOf('#'));
+            return fqn.substring(fqn.lastIndexOf('.') + 1);
+        }
+        return "Unknown";
     }
 }

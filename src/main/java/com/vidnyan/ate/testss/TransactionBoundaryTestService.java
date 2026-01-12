@@ -27,6 +27,7 @@ public class TransactionBoundaryTestService {
         remoteService.callViaHttpClient();
     }
 
+
     // Indirect Violation (Chain)
 
     @Transactional
