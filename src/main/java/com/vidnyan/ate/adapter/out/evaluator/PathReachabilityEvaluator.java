@@ -37,6 +37,11 @@ public class PathReachabilityEvaluator implements RuleEvaluator {
             return false;
         }
 
+        // Explicitly exclude SAME-TABLE-UPDATE-001 as it has a dedicated evaluator
+        if ("SAME-TABLE-UPDATE-001".equals(rule.id())) {
+            return false;
+        }
+
         // Supports rules that have both entry points and sinks defined
         return rule.detection() != null 
                 && rule.detection().entryPoints() != null

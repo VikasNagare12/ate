@@ -1,0 +1,33 @@
+{
+  "id": "SAME-TABLE-UPDATE-001",
+  "name": "Multiple Updates to Same Table",
+  "description": "Multiple update/insert operations on the same table within a single transaction can indicate inefficient design or potential race conditions.",
+  "severity": "WARN",
+  "category": "PERFORMANCE",
+  "isEnabled": true,
+  "detection": {
+    "entryPoints": {
+      "annotations": ["org.springframework.transaction.annotation.Transactional"],
+      "types": [],
+      "methodPatterns": []
+    },
+    "sinks": {
+      "annotations": [],
+      "types": [
+        "org.springframework.jdbc.core.JdbcTemplate",
+        "org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate"
+      ],
+      "methodPatterns": ["update", "batchUpdate", "insert"]
+    },
+    "pathConstraints": {
+      "mustContain": [],
+      "mustNotContain": [],
+      "maxDepth": 20
+    }
+  },
+  "remediation": {
+    "quickFix": "Combine updates into a single batch operation or optimize the transaction scope.",
+    "explanation": "Executing multiple separate updates on the same table increases database round-trips and lock contention. Consider batching or refining the logic.",
+    "references": []
+  }
+}

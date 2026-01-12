@@ -104,8 +104,8 @@ public class AnalysisCliRunner implements CommandLineRunner {
         int count = 0;
         for (Violation v : result.violations()) {
             count++;
-            if (count > 10) {
-                log.info(" ... and {} more violations", result.violations().size() - 10);
+            if (count > 100) {
+                log.info(" ... and {} more violations", result.violations().size() - 100);
                 break;
             }
 

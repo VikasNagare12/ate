@@ -14,6 +14,10 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSol
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JavaParserTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
+import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserFieldDeclaration;
+import com.github.javaparser.symbolsolver.javaparsermodel.declarations.JavaParserVariableDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedValueDeclaration;
+import com.github.javaparser.resolution.declarations.ResolvedFieldDeclaration;
 import com.vidnyan.ate.application.port.out.SourceCodeParser;
 import com.vidnyan.ate.domain.graph.CallEdge;
 import com.vidnyan.ate.domain.model.*;
@@ -48,10 +52,29 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         combinedTypeSolver.add(new ReflectionTypeSolver());
         
         // Add common source directories first (highest priority)
-        addSourceDirIfExists(combinedTypeSolver, sourcePath.resolve("src/main/java"));
-        addSourceDirIfExists(combinedTypeSolver, sourcePath.resolve("src/test/java"));
-        addSourceDirIfExists(combinedTypeSolver, sourcePath.resolve("src"));
-        
+        // Try to find the actual source root (e.g., src/main/java) by walking up
+        Path current = sourcePath.toAbsolutePath();
+        boolean specificRootFound = false;
+        while (current != null) {
+            if (current.endsWith("src/main/java") || current.endsWith("src/test/java")) {
+                try {
+                    log.info("Auto-detected source root: {}", current);
+                    combinedTypeSolver.add(new JavaParserTypeSolver(current));
+                    specificRootFound = true;
+                } catch (Exception e) {
+                    log.warn("Failed to add detected source root: {}", current);
+                }
+            }
+            if (Files.exists(current.resolve("pom.xml")) || Files.exists(current.resolve("build.gradle"))) {
+                // We are at project root, try adding standard source dirs
+                addSourceDirIfExists(combinedTypeSolver, current.resolve("src/main/java"));
+                addSourceDirIfExists(combinedTypeSolver, current.resolve("src/test/java"));
+            }
+            current = current.getParent();
+            if (specificRootFound)
+                break; // Stop if we found the main java root
+        }
+
         // Final fallback: the provided source path itself
         combinedTypeSolver.add(new JavaParserTypeSolver(sourcePath));
 
@@ -450,6 +473,10 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                     }
                 }
                 
+                List<String> arguments = call.getArguments().stream()
+                        .map(JavaParserAdapterV2.this::resolveArgument)
+                        .toList();
+
                 CallEdge edge = CallEdge.builder()
                         .caller(method.fullyQualifiedName())
                         .callee(buildRawCallSignature(call))
@@ -458,6 +485,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                         .location(Location.at(filePath,
                                 call.getBegin().map(p -> p.line).orElse(0),
                                 call.getBegin().map(p -> p.column).orElse(0)))
+                        .arguments(arguments)
                         .build();
                 
                 callEdges.add(edge);
@@ -848,5 +876,59 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         }
 
         return null;
+    }
+
+    private String resolveArgument(Expression expr) {
+        // 1. Handle String literals directly
+        if (expr.isStringLiteralExpr()) {
+            return "\"" + expr.asStringLiteralExpr().getValue() + "\"";
+        }
+
+        // 2. Handle simple local variable references or field access
+        if (expr.isNameExpr() || expr.isFieldAccessExpr()) {
+            try {
+                // Resolve the expression (variable or field)
+                var resolved = expr.isNameExpr() ? expr.asNameExpr().resolve() : expr.asFieldAccessExpr().resolve();
+
+                // Check if it's a local variable
+                if (resolved instanceof JavaParserVariableDeclaration varDecl) {
+                    com.github.javaparser.ast.Node node = varDecl.getWrappedNode();
+                    if (node instanceof com.github.javaparser.ast.expr.VariableDeclarationExpr vde) {
+                        for (com.github.javaparser.ast.body.VariableDeclarator v : vde.getVariables()) {
+                            if (v.getNameAsString().equals(resolved.getName()) && v.getInitializer().isPresent()) {
+                                return resolveArgument(v.getInitializer().get());
+                            }
+                        }
+                    } else if (node instanceof com.github.javaparser.ast.body.VariableDeclarator v) {
+                        if (v.getInitializer().isPresent()) {
+                            return resolveArgument(v.getInitializer().get());
+                        }
+                    }
+                }
+
+                // Check if it's a field
+                if (resolved instanceof JavaParserFieldDeclaration fieldDecl) {
+                    com.github.javaparser.ast.Node node = fieldDecl.getWrappedNode();
+                    if (node instanceof com.github.javaparser.ast.body.FieldDeclaration fd) {
+                        for (com.github.javaparser.ast.body.VariableDeclarator v : fd.getVariables()) {
+                            if (v.getNameAsString().equals(resolved.getName()) && v.getInitializer().isPresent()) {
+                                return resolveArgument(v.getInitializer().get());
+                            }
+                        }
+                    } else if (node instanceof com.github.javaparser.ast.body.VariableDeclarator v) {
+                        if (v.getInitializer().isPresent()) {
+                            return resolveArgument(v.getInitializer().get());
+                        }
+                    } else if (node instanceof com.github.javaparser.ast.body.EnumConstantDeclaration ecd) {
+                        // Enums are harder to map to string literals, ignore for now
+                    }
+                }
+
+            } catch (Exception e) {
+                // Resolution failed
+            }
+        }
+
+        return expr.toString();
     }
 }

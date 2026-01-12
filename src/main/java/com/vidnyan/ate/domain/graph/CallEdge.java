@@ -11,7 +11,8 @@ public record CallEdge(
     String calleeFqn,
     String resolvedCalleeFqn,
     CallType callType,
-    Location location
+        Location location,
+        java.util.List<String> arguments
 ) {
     
     /**
@@ -55,15 +56,21 @@ public record CallEdge(
         private String resolvedCalleeFqn;
         private CallType callType = CallType.VIRTUAL;
         private Location location;
+        private java.util.List<String> arguments = java.util.List.of();
         
         public Builder caller(String fqn) { this.callerFqn = fqn; return this; }
         public Builder callee(String fqn) { this.calleeFqn = fqn; return this; }
         public Builder resolvedCallee(String fqn) { this.resolvedCalleeFqn = fqn; return this; }
         public Builder callType(CallType type) { this.callType = type; return this; }
         public Builder location(Location loc) { this.location = loc; return this; }
+
+        public Builder arguments(java.util.List<String> args) {
+            this.arguments = args;
+            return this;
+        }
         
         public CallEdge build() {
-            return new CallEdge(callerFqn, calleeFqn, resolvedCalleeFqn, callType, location);
+            return new CallEdge(callerFqn, calleeFqn, resolvedCalleeFqn, callType, location, arguments);
         }
     }
 }
