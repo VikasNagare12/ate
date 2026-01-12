@@ -363,16 +363,10 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         try {
             ResolvedType resolved = type.resolve();
             String fqn = resolved.describe();
-            // Clean up generics for base type but preserve array dimensions
-            String baseFqn = fqn;
-            if (fqn.contains("<")) {
-                int arrayStart = fqn.indexOf('['); // Check for array dimensions like List<String>[]
-                String modifiers = "";
-                if (arrayStart > 0 && arrayStart > fqn.indexOf('>')) {
-                    modifiers = fqn.substring(arrayStart);
-                }
-                baseFqn = fqn.substring(0, fqn.indexOf('<')) + modifiers;
-            }
+            // User requested to KEEP generics for consistency
+            // String baseFqn = fqn.contains("<") ? fqn.substring(0, fqn.indexOf('<')) :
+            // fqn;
+            String baseFqn = fqn; // Use full FQN with generics
             String simpleName = baseFqn.contains(".") 
                     ? baseFqn.substring(baseFqn.lastIndexOf('.') + 1) 
                     : baseFqn;
@@ -548,20 +542,12 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             if (i > 0)
                 sb.append(",");
             try {
-                // Use describe() to get the full type name, then strip generics but keep array
-                // dims
+                // Use describe() to get the full type name (including generics as requested)
                 String fullType = method.getParam(i).getType().describe();
-                if (fullType.contains("<")) {
-                    int arrayStart = fullType.indexOf('[');
-                    String modifiers = "";
-                    if (arrayStart > 0 && arrayStart > fullType.indexOf('>')) {
-                        modifiers = fullType.substring(arrayStart);
-                    }
-                    fullType = fullType.substring(0, fullType.indexOf('<')) + modifiers;
-                }
+                // Previously stripped generics here, now preserving them
                 sb.append(fullType);
             } catch (Exception e) {
-                sb.append("?");
+                sb.append("_");
             }
         }
         sb.append(")");
@@ -576,17 +562,10 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 sb.append(",");
             try {
                 String fullType = ctor.getParam(i).getType().describe();
-                if (fullType.contains("<")) {
-                    int arrayStart = fullType.indexOf('[');
-                    String modifiers = "";
-                    if (arrayStart > 0 && arrayStart > fullType.indexOf('>')) {
-                        modifiers = fullType.substring(arrayStart);
-                    }
-                    fullType = fullType.substring(0, fullType.indexOf('<')) + modifiers;
-                }
+                // Preserving generics as requested
                 sb.append(fullType);
             } catch (Exception e) {
-                sb.append("?");
+                sb.append("_");
             }
         }
         sb.append(")");
@@ -606,9 +585,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             AtomicInteger unresolvedCalls,
             Map<String, FieldEntity> fields
     ) {
-        String ctorFqn = containingType.fullyQualifiedName() + "#<init>" + 
-                buildParameterSignature(cd.getParameters());
-        
+        // Resolve parameters first to build accurate FQN
         List<MethodEntity.Parameter> parameters = cd.getParameters().stream()
                 .map(p -> new MethodEntity.Parameter(
                         p.getNameAsString(),
@@ -616,6 +593,13 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                         extractAnnotationsWithFqn(p.getAnnotations())
                 ))
                 .toList();
+
+        // Build signature using resolved parameter types
+        String signature = parameters.stream()
+                .map(p -> p.type().fullyQualifiedName())
+                .collect(Collectors.joining(","));
+
+        String ctorFqn = containingType.fullyQualifiedName() + "#<init>(" + signature + ")";
         
         MethodEntity ctorEntity = new MethodEntity(
                 ctorFqn,
@@ -796,7 +780,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         for (int i = 0; i < params.size(); i++) {
             if (i > 0)
                 sb.append(",");
-            sb.append("?");
+            sb.append("_");
         }
         sb.append(")");
         return sb.toString();
@@ -810,7 +794,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         for (int i = 0; i < call.getArguments().size(); i++) {
             if (i > 0)
                 sb.append(",");
-            sb.append("?");
+            sb.append("_");
         }
         sb.append(")");
         return sb.toString();
@@ -858,7 +842,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                     for (int i = 0; i < call.getArguments().size(); i++) {
                         if (i > 0)
                             sb.append(",");
-                        sb.append("?");
+                        sb.append("_");
                     }
                     sb.append(")");
                     return sb.toString();
@@ -874,7 +858,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 for (int i = 0; i < call.getArguments().size(); i++) {
                     if (i > 0)
                         sb.append(",");
-                    sb.append("?");
+                    sb.append("_");
                 }
                 sb.append(")");
                 return sb.toString();
@@ -903,7 +887,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                     for (int i = 0; i < call.getArguments().size(); i++) {
                         if (i > 0)
                             sb.append(",");
-                        sb.append("?");
+                        sb.append("_");
                     }
                     sb.append(")");
                     return sb.toString();
