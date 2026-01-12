@@ -101,7 +101,7 @@ public class ThreadManagementEvaluator implements RuleEvaluator {
         }
         
         // Check raw callee (for unresolved cases)
-        if (raw != null && raw.contains("new Thread") || raw.startsWith("Thread.")) {
+        if (raw != null && raw.contains("new Thread")) {
             log.debug("Found Thread creation (raw): {}", raw);
             return true;
             }
