@@ -33,24 +33,25 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Enhanced JavaParser adapter with JavaSymbolSolver for accurate type resolution.
+ * Enhanced JavaParser adapter with JavaSymbolSolver for accurate type
+ * resolution.
  * This version resolves ~95% of types vs ~60% with manual resolution.
  */
 @Slf4j
 @Component
 public class JavaParserAdapterV2 implements SourceCodeParser {
-    
+
     @Override
     public ParsingResult parse(Path sourcePath, ParsingOptions options) {
         long startTime = System.currentTimeMillis();
         log.info("Parsing source code from: {} (with SymbolSolver)", sourcePath);
-        
+
         // Configure TypeSolver for symbol resolution
         CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
-        
+
         // Add ReflectionTypeSolver for JDK classes (java.*, javax.*, etc.)
         combinedTypeSolver.add(new ReflectionTypeSolver());
-        
+
         // Add common source directories first (highest priority)
         // Try to find the actual source root (e.g., src/main/java) by walking up
         Path current = sourcePath.toAbsolutePath();
@@ -87,22 +88,22 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21)
                 .setSymbolResolver(symbolSolver);
         JavaParser parser = new JavaParser(config);
-        
+
         // Collect all Java files
         List<Path> javaFiles = collectJavaFiles(sourcePath, options);
         log.info("Found {} Java files", javaFiles.size());
-        
+
         // Parse all files
         Map<String, TypeEntity> types = new ConcurrentHashMap<>();
         Map<String, MethodEntity> methods = new ConcurrentHashMap<>();
         Map<String, FieldEntity> fields = new ConcurrentHashMap<>();
         List<Relationship> relationships = Collections.synchronizedList(new ArrayList<>());
         List<CallEdge> callEdges = Collections.synchronizedList(new ArrayList<>());
-        
+
         AtomicInteger filesProcessed = new AtomicInteger(0);
         AtomicInteger resolvedCalls = new AtomicInteger(0);
         AtomicInteger unresolvedCalls = new AtomicInteger(0);
-        
+
         // Parse files (parallelization disabled for SymbolSolver thread safety)
         for (Path file : javaFiles) {
             try {
@@ -113,7 +114,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 log.warn("Failed to parse {}: {}", file, e.getMessage());
             }
         }
-        
+
         // Build source model
         SourceModel sourceModel = SourceModel.builder()
                 .types(Map.copyOf(types))
@@ -121,32 +122,31 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 .fields(Map.copyOf(fields))
                 .relationships(List.copyOf(relationships))
                 .build();
-        
+
         long duration = System.currentTimeMillis() - startTime;
-        
+
         int totalCalls = resolvedCalls.get() + unresolvedCalls.get();
-        double resolutionRate = totalCalls > 0 
-                ? (resolvedCalls.get() * 100.0 / totalCalls) : 0;
-        
-        log.info("Parsing complete: {} files, {} types, {} methods in {}ms", 
+        double resolutionRate = totalCalls > 0
+                ? (resolvedCalls.get() * 100.0 / totalCalls)
+                        : 0;
+
+        log.info("Parsing complete: {} files, {} types, {} methods in {}ms",
                 filesProcessed.get(), types.size(), methods.size(), duration);
-        log.info("Type resolution: {}/{} calls resolved ({:.1f}%)", 
-                resolvedCalls.get(), totalCalls, resolutionRate);
-        
+        log.info("Type resolution: {}/{} calls resolved ({:.1f}%)",
+                        resolvedCalls.get(), totalCalls, resolutionRate);
+
         return new ParsingResult(
-                sourceModel, 
-                List.copyOf(callEdges), 
+                sourceModel,
+                        List.copyOf(callEdges),
                 new ParsingStats(
                         filesProcessed.get(),
                         types.size(),
                         methods.size(),
                         fields.size(),
                         callEdges.size(),
-                        duration
-                )
-        );
+                        duration));
     }
-    
+
     private void addSourceDirIfExists(CombinedTypeSolver solver, Path dir) {
         if (Files.exists(dir) && Files.isDirectory(dir)) {
             try {
@@ -156,7 +156,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             }
         }
     }
-    
+
     /**
      * Automatically discover and add JAR dependencies to the type solver.
      * Checks common locations: lib/, target/dependency/, target/lib/
@@ -228,18 +228,18 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             return List.of();
         }
     }
-    
+
     private boolean isTestFile(Path path) {
         String pathStr = path.toString();
-        return pathStr.contains("/test/") || pathStr.contains("\\test\\") 
+        return pathStr.contains("/test/") || pathStr.contains("\\test\\")
                 || pathStr.endsWith("Test.java") || pathStr.endsWith("Tests.java");
     }
-    
+
     private boolean matchesExcludePattern(Path path, List<String> patterns) {
         String pathStr = path.toString();
         return patterns.stream().anyMatch(pathStr::contains);
     }
-    
+
     private void parseFile(
             JavaParser parser,
             Path file,
@@ -249,22 +249,21 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             List<Relationship> relationships,
             List<CallEdge> callEdges,
             AtomicInteger resolvedCalls,
-            AtomicInteger unresolvedCalls
-    ) throws IOException {
+            AtomicInteger unresolvedCalls) throws IOException {
         ParseResult<CompilationUnit> result = parser.parse(file);
-        
+
         if (!result.isSuccessful() || result.getResult().isEmpty()) {
             return;
         }
-        
+
         CompilationUnit cu = result.getResult().get();
         String packageName = cu.getPackageDeclaration()
                 .map(pd -> pd.getNameAsString())
                 .orElse("");
-        
+
         // Build import map for fallback resolution
         Map<String, String> imports = buildImportMap(cu);
-        
+
         // Process all type declarations
         cu.findAll(TypeDeclaration.class).forEach(td -> {
             processTypeDeclaration(td, packageName, file.toString(), imports,
@@ -272,7 +271,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                     resolvedCalls, unresolvedCalls);
         });
     }
-    
+
     private Map<String, String> buildImportMap(CompilationUnit cu) {
         Map<String, String> imports = new HashMap<>();
         cu.getImports().forEach(imp -> {
@@ -284,7 +283,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         });
         return imports;
     }
-    
+
     private void processTypeDeclaration(
             TypeDeclaration<?> td,
             String packageName,
@@ -296,24 +295,23 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             List<Relationship> relationships,
             List<CallEdge> callEdges,
             AtomicInteger resolvedCalls,
-            AtomicInteger unresolvedCalls
-    ) {
-        String typeFqn = packageName.isEmpty() ? td.getNameAsString() 
+            AtomicInteger unresolvedCalls) {
+        String typeFqn = packageName.isEmpty() ? td.getNameAsString()
                 : packageName + "." + td.getNameAsString();
-        
+
         // Determine type kind
         TypeEntity.TypeKind kind = determineTypeKind(td);
-        
+
         // Extract modifiers
         Set<TypeEntity.Modifier> modifiers = extractModifiers(td);
-        
+
         // Extract annotations with FQN resolution
         List<AnnotationRef> annotations = extractAnnotationsWithFqn(td.getAnnotations());
-        
+
         // Extract supertypes with symbol resolution
         List<TypeRef> supertypes = new ArrayList<>();
         List<TypeRef> interfaces = new ArrayList<>();
-        
+
         if (td instanceof ClassOrInterfaceDeclaration cid) {
             cid.getExtendedTypes().forEach(ext -> {
                 supertypes.add(resolveTypeWithSymbolSolver(ext, imports, packageName));
@@ -322,19 +320,18 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 interfaces.add(resolveTypeWithSymbolSolver(impl, imports, packageName));
             });
         }
-        
+
         // Create location
-        Location location = Location.at(filePath, 
-                td.getBegin().map(p -> p.line).orElse(0),
+        Location location = Location.at(filePath,
+                        td.getBegin().map(p -> p.line).orElse(0),
                 td.getBegin().map(p -> p.column).orElse(0));
-        
+
         // Create type entity
         TypeEntity typeEntity = new TypeEntity(
                 typeFqn, td.getNameAsString(), packageName, kind,
-                modifiers, annotations, supertypes, interfaces, location
-        );
+                modifiers, annotations, supertypes, interfaces, location);
         types.put(typeFqn, typeEntity);
-        
+
         // Process fields first so we can resolve field types in methods
         td.getFields().forEach(field -> {
             processField(field, typeEntity, filePath, imports, fields);
@@ -342,10 +339,10 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
 
         // Process methods with enhanced call resolution
         td.getMethods().forEach(method -> {
-            processMethodWithSymbolResolver(method, typeEntity, filePath, imports, 
-                    methods, callEdges, resolvedCalls, unresolvedCalls, fields);
+            processMethodWithSymbolResolver(method, typeEntity, filePath, imports,
+                            methods, callEdges, resolvedCalls, unresolvedCalls, fields);
         });
-        
+
         // Process constructors
         if (td instanceof ClassOrInterfaceDeclaration cid) {
             cid.getConstructors().forEach(ctor -> {
@@ -354,12 +351,11 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             });
         }
     }
-    
+
     private TypeRef resolveTypeWithSymbolSolver(
             com.github.javaparser.ast.type.Type type,
-            Map<String, String> imports, 
-            String packageName
-    ) {
+            Map<String, String> imports,
+                    String packageName) {
         try {
             ResolvedType resolved = type.resolve();
             String fqn = resolved.describe();
@@ -367,8 +363,8 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             // String baseFqn = fqn.contains("<") ? fqn.substring(0, fqn.indexOf('<')) :
             // fqn;
             String baseFqn = fqn; // Use full FQN with generics
-            String simpleName = baseFqn.contains(".") 
-                    ? baseFqn.substring(baseFqn.lastIndexOf('.') + 1) 
+            String simpleName = baseFqn.contains(".")
+                    ? baseFqn.substring(baseFqn.lastIndexOf('.') + 1)
                     : baseFqn;
             return new TypeRef(simpleName, baseFqn, false, false, fqn.contains("<"), List.of());
         } catch (Exception e) {
@@ -376,7 +372,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             return resolveTypeRef(type.asString(), imports, packageName);
         }
     }
-    
+
     private void processMethodWithSymbolResolver(
             MethodDeclaration md,
             TypeEntity containingType,
@@ -386,18 +382,16 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             List<CallEdge> callEdges,
             AtomicInteger resolvedCalls,
             AtomicInteger unresolvedCalls,
-            Map<String, FieldEntity> fields
-    ) {
+            Map<String, FieldEntity> fields) {
         // Extract parameters (resolve types first)
         List<MethodEntity.Parameter> parameters = md.getParameters().stream()
                 .map(p -> new MethodEntity.Parameter(
                         p.getNameAsString(),
                         resolveTypeWithSymbolSolver(p.getType(), imports, containingType.packageName()),
                         extractAnnotationsWithFqn(p
-                                .getAnnotations())
-                ))
+                                .getAnnotations())))
                 .toList();
-        
+
         // Build signature using resolved parameter types
         String signature = md.getNameAsString() + "(" +
                 parameters.stream()
@@ -413,12 +407,11 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             returnType = new TypeRef(
                     md.getType().asString(),
                     resolved.describe(),
-                    false, false, false, List.of()
-            );
+                    false, false, false, List.of());
         } catch (Exception e) {
             returnType = resolveTypeRef(md.getTypeAsString(), imports, containingType.packageName());
         }
-        
+
         // Create method entity
         MethodEntity methodEntity = new MethodEntity(
                 methodFqn,
@@ -431,38 +424,36 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 md.getThrownExceptions().stream()
                         .map(t -> resolveTypeRef(t.asString(), imports, containingType.packageName()))
                         .toList(),
-                Location.at(filePath, 
-                        md.getBegin().map(p -> p.line).orElse(0),
-                        md.getBegin().map(p -> p.column).orElse(0))
-        );
+                Location.at(filePath,
+                                md.getBegin().map(p -> p.line).orElse(0),
+                        md.getBegin().map(p -> p.column).orElse(0)));
         methods.put(methodFqn, methodEntity);
-        
+
         // Extract method calls using Symbol Solver
         if (md.getBody().isPresent()) {
             extractMethodCallsWithSymbolSolver(md.getBody().get(), methodEntity, containingType, filePath,
                     callEdges, resolvedCalls, unresolvedCalls, imports, fields);
         }
     }
-    
+
     private void extractMethodCallsWithSymbolSolver(
             com.github.javaparser.ast.Node bodyNode,
-                    MethodEntity method,
-            TypeEntity containingType,
+            MethodEntity method,
+                    TypeEntity containingType,
             String filePath,
             List<CallEdge> callEdges,
             AtomicInteger resolvedCalls,
             AtomicInteger unresolvedCalls,
             Map<String, String> imports,
-            Map<String, FieldEntity> fields
-    ) {
+            Map<String, FieldEntity> fields) {
         bodyNode.accept(new VoidVisitorAdapter<Void>() {
-            
+
             @Override
             public void visit(MethodCallExpr call, Void arg) {
                 super.visit(call, arg);
-                
+
                 String resolvedCalleeFqn = null;
-                
+
                 // Try to resolve using SymbolSolver
                 try {
                     ResolvedMethodDeclaration resolvedMethod = call.resolve();
@@ -480,9 +471,9 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                         log.trace("Could not resolve: {}: {}", call.getNameAsString(), e.getMessage());
                     }
                 }
-                
+
                 List<String> arguments = call.getArguments().stream()
-                        .map(JavaParserAdapterV2.this::resolveArgument)
+                        .map(JavaParserAdapterV2.this::resolveArgumentType)
                         .toList();
 
                 CallEdge edge = CallEdge.builder()
@@ -495,7 +486,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                                 call.getBegin().map(p -> p.column).orElse(0)))
                         .arguments(arguments)
                         .build();
-                
+
                 callEdges.add(edge);
             }
 
@@ -535,7 +526,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             }
         }, null);
     }
-    
+
     private String buildParameterTypes(ResolvedMethodDeclaration method) {
         StringBuilder sb = new StringBuilder("(");
         for (int i = 0; i < method.getNumberOfParams(); i++) {
@@ -547,7 +538,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 // Previously stripped generics here, now preserving them
                 sb.append(fullType);
             } catch (Exception e) {
-                sb.append("_");
+                sb.append("Unknown");
             }
         }
         sb.append(")");
@@ -565,15 +556,15 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 // Preserving generics as requested
                 sb.append(fullType);
             } catch (Exception e) {
-                sb.append("_");
+                sb.append("Unknown");
             }
         }
         sb.append(")");
         return sb.toString();
     }
-    
+
     // ============ Helper Methods ============
-    
+
     private void processConstructor(
             ConstructorDeclaration cd,
             TypeEntity containingType,
@@ -583,15 +574,13 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             List<CallEdge> callEdges,
             AtomicInteger resolvedCalls,
             AtomicInteger unresolvedCalls,
-            Map<String, FieldEntity> fields
-    ) {
+            Map<String, FieldEntity> fields) {
         // Resolve parameters first to build accurate FQN
         List<MethodEntity.Parameter> parameters = cd.getParameters().stream()
                 .map(p -> new MethodEntity.Parameter(
                         p.getNameAsString(),
                         resolveTypeRef(p.getTypeAsString(), imports, containingType.packageName()),
-                        extractAnnotationsWithFqn(p.getAnnotations())
-                ))
+                        extractAnnotationsWithFqn(p.getAnnotations())))
                 .toList();
 
         // Build signature using resolved parameter types
@@ -600,7 +589,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 .collect(Collectors.joining(","));
 
         String ctorFqn = containingType.fullyQualifiedName() + "#<init>(" + signature + ")";
-        
+
         MethodEntity ctorEntity = new MethodEntity(
                 ctorFqn,
                 "<init>",
@@ -612,38 +601,35 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 List.of(),
                 Location.at(filePath,
                         cd.getBegin().map(p -> p.line).orElse(0),
-                        cd.getBegin().map(p -> p.column).orElse(0))
-        );
+                        cd.getBegin().map(p -> p.column).orElse(0)));
         methods.put(ctorFqn, ctorEntity);
 
         // Extract method calls from constructor body
         extractMethodCallsWithSymbolSolver(cd, ctorEntity, containingType, filePath,
                 callEdges, resolvedCalls, unresolvedCalls, imports, fields);
     }
-    
+
     private void processField(
             FieldDeclaration fd,
             TypeEntity containingType,
             String filePath,
             Map<String, String> imports,
-            Map<String, FieldEntity> fields
-    ) {
+            Map<String, FieldEntity> fields) {
         TypeRef typeRef;
         try {
             ResolvedType resolved = fd.getElementType().resolve();
             typeRef = new TypeRef(
                     fd.getElementType().asString(),
                     resolved.describe(),
-                    false, false, false, List.of()
-            );
+                    false, false, false, List.of());
         } catch (Exception e) {
             typeRef = resolveTypeRef(fd.getElementType().asString(), imports, containingType.packageName());
         }
-        
+
         final TypeRef finalTypeRef = typeRef;
         fd.getVariables().forEach(var -> {
             String fieldFqn = containingType.fullyQualifiedName() + "#" + var.getNameAsString();
-            
+
             FieldEntity fieldEntity = new FieldEntity(
                     fieldFqn,
                     var.getNameAsString(),
@@ -653,21 +639,23 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                     extractAnnotationsWithFqn(fd.getAnnotations()),
                     Location.at(filePath,
                             var.getBegin().map(p -> p.line).orElse(0),
-                            var.getBegin().map(p -> p.column).orElse(0))
-            );
+                            var.getBegin().map(p -> p.column).orElse(0)));
             fields.put(fieldFqn, fieldEntity);
         });
     }
-    
+
     private TypeEntity.TypeKind determineTypeKind(TypeDeclaration<?> td) {
-        if (td instanceof EnumDeclaration) return TypeEntity.TypeKind.ENUM;
-        if (td instanceof AnnotationDeclaration) return TypeEntity.TypeKind.ANNOTATION;
-        if (td instanceof RecordDeclaration) return TypeEntity.TypeKind.RECORD;
-        if (td instanceof ClassOrInterfaceDeclaration cid && cid.isInterface()) 
+        if (td instanceof EnumDeclaration)
+            return TypeEntity.TypeKind.ENUM;
+        if (td instanceof AnnotationDeclaration)
+            return TypeEntity.TypeKind.ANNOTATION;
+        if (td instanceof RecordDeclaration)
+            return TypeEntity.TypeKind.RECORD;
+        if (td instanceof ClassOrInterfaceDeclaration cid && cid.isInterface())
             return TypeEntity.TypeKind.INTERFACE;
         return TypeEntity.TypeKind.CLASS;
     }
-    
+
     private Set<TypeEntity.Modifier> extractModifiers(com.github.javaparser.ast.nodeTypes.NodeWithModifiers<?> node) {
         Set<TypeEntity.Modifier> modifiers = EnumSet.noneOf(TypeEntity.Modifier.class);
         node.getModifiers().forEach(m -> {
@@ -683,15 +671,15 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 case TRANSIENT -> modifiers.add(TypeEntity.Modifier.TRANSIENT);
                 case NATIVE -> modifiers.add(TypeEntity.Modifier.NATIVE);
                 case STRICTFP -> modifiers.add(TypeEntity.Modifier.STRICTFP);
-                default -> {}
+                default -> {
+                }
             }
         });
         return modifiers;
     }
-    
+
     private List<AnnotationRef> extractAnnotationsWithFqn(
-            com.github.javaparser.ast.NodeList<AnnotationExpr> annotations
-    ) {
+            com.github.javaparser.ast.NodeList<AnnotationExpr> annotations) {
         return annotations.stream()
                 .map(a -> {
                     String fqn = a.getNameAsString();
@@ -704,33 +692,31 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                     return new AnnotationRef(
                             a.getNameAsString(),
                             fqn,
-                            extractAnnotationAttributes(a)
-                    );
+                            extractAnnotationAttributes(a));
                 })
                 .toList();
     }
-    
+
     private Map<String, Object> extractAnnotationAttributes(AnnotationExpr annotation) {
         Map<String, Object> attributes = new HashMap<>();
         if (annotation instanceof SingleMemberAnnotationExpr single) {
             attributes.put("value", single.getMemberValue().toString());
         } else if (annotation instanceof NormalAnnotationExpr normal) {
-            normal.getPairs().forEach(pair -> 
-                attributes.put(pair.getNameAsString(), pair.getValue().toString()));
+            normal.getPairs().forEach(pair -> attributes.put(pair.getNameAsString(), pair.getValue().toString()));
         }
         return attributes;
     }
-    
+
     private TypeRef resolveTypeRef(String typeStr, Map<String, String> imports, String packageName) {
         if (isPrimitive(typeStr)) {
             return TypeRef.primitive(typeStr);
         }
-        
+
         boolean isArray = typeStr.endsWith("[]");
         String baseType = isArray ? typeStr.substring(0, typeStr.length() - 2) : typeStr;
         boolean isGeneric = baseType.contains("<");
         String simpleType = isGeneric ? baseType.substring(0, baseType.indexOf('<')) : baseType;
-        
+
         String fqn;
         if (imports.containsKey(simpleType)) {
             fqn = imports.get(simpleType);
@@ -742,10 +728,10 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 fqn = packageName.isEmpty() ? simpleType : packageName + "." + simpleType;
             }
         }
-        
+
         return new TypeRef(simpleType, fqn, false, isArray, isGeneric, List.of());
     }
-    
+
     private String resolveCommonType(String simpleName) {
         return switch (simpleName) {
             case "List" -> "java.util.List";
@@ -761,31 +747,14 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
             default -> null;
         };
     }
-    
+
     private boolean isPrimitive(String type) {
         return switch (type) {
             case "boolean", "byte", "char", "short", "int", "long", "float", "double", "void" -> true;
             default -> false;
         };
     }
-    
-    private String buildMethodSignature(MethodDeclaration md) {
-        return md.getNameAsString() + buildParameterSignature(md.getParameters());
-    }
-    
-    private String buildParameterSignature(
-            com.github.javaparser.ast.NodeList<com.github.javaparser.ast.body.Parameter> params
-    ) {
-        StringBuilder sb = new StringBuilder("(");
-        for (int i = 0; i < params.size(); i++) {
-            if (i > 0)
-                sb.append(",");
-            sb.append("_");
-        }
-        sb.append(")");
-        return sb.toString();
-    }
-    
+
     private String buildRawCallSignature(MethodCallExpr call) {
         String scope = call.getScope().map(s -> s.toString() + ".").orElse("");
         StringBuilder sb = new StringBuilder(scope);
@@ -794,12 +763,12 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         for (int i = 0; i < call.getArguments().size(); i++) {
             if (i > 0)
                 sb.append(",");
-            sb.append("_");
+            sb.append(resolveArgumentType(call.getArgument(i)));
         }
         sb.append(")");
         return sb.toString();
     }
-    
+
     private CallEdge.CallType determineCallType(MethodCallExpr call) {
         if (!call.getScope().isPresent()) {
             return CallEdge.CallType.DIRECT;
@@ -827,7 +796,10 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
 
         // Check if scope is "this" - method on same class
         if ("this".equals(scopeName)) {
-            return containingType.fullyQualifiedName() + "#" + methodName + "()";
+            String argSignature = call.getArguments().stream()
+                    .map(this::resolveArgumentType)
+                    .collect(Collectors.joining(","));
+            return containingType.fullyQualifiedName() + "#" + methodName + "(" + argSignature + ")";
         }
 
         // Check if scope is a simple identifier (variable name)
@@ -842,7 +814,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                     for (int i = 0; i < call.getArguments().size(); i++) {
                         if (i > 0)
                             sb.append(",");
-                        sb.append("_");
+                        sb.append(resolveArgumentType(call.getArgument(i)));
                     }
                     sb.append(")");
                     return sb.toString();
@@ -858,7 +830,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                 for (int i = 0; i < call.getArguments().size(); i++) {
                     if (i > 0)
                         sb.append(",");
-                    sb.append("_");
+                    sb.append(resolveArgumentType(call.getArgument(i)));
                 }
                 sb.append(")");
                 return sb.toString();
@@ -887,7 +859,7 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
                     for (int i = 0; i < call.getArguments().size(); i++) {
                         if (i > 0)
                             sb.append(",");
-                        sb.append("_");
+                        sb.append(resolveArgumentType(call.getArgument(i)));
                     }
                     sb.append(")");
                     return sb.toString();
@@ -916,57 +888,28 @@ public class JavaParserAdapterV2 implements SourceCodeParser {
         return null;
     }
 
-    private String resolveArgument(Expression expr) {
-        // 1. Handle String literals directly
-        if (expr.isStringLiteralExpr()) {
-            return "\"" + expr.asStringLiteralExpr().getValue() + "\"";
+
+    /**
+     * Resolve the type of an argument expression to a Fully Qualified Name.
+     * Used to build method signatures that match MethodEntity keys.
+     */
+    private String resolveArgumentType(Expression arg) {
+        try {
+            ResolvedType type = arg.calculateResolvedType();
+            String fqn = type.describe();
+            // Preserve Generics as per user request
+            return fqn;
+        } catch (Exception e) {
+            // Fallback for literals if symbol solver fails
+            if (arg instanceof StringLiteralExpr) return "java.lang.String";
+            if (arg instanceof IntegerLiteralExpr) return "int";
+            if (arg instanceof LongLiteralExpr) return "long";
+            if (arg instanceof DoubleLiteralExpr) return "double";
+            if (arg instanceof BooleanLiteralExpr) return "boolean";
+            if (arg instanceof NullLiteralExpr) return "null";
+            
+            // Unresolved
+            return "Unknown";
         }
-
-        // 2. Handle simple local variable references or field access
-        if (expr.isNameExpr() || expr.isFieldAccessExpr()) {
-            try {
-                // Resolve the expression (variable or field)
-                var resolved = expr.isNameExpr() ? expr.asNameExpr().resolve() : expr.asFieldAccessExpr().resolve();
-
-                // Check if it's a local variable
-                if (resolved instanceof JavaParserVariableDeclaration varDecl) {
-                    com.github.javaparser.ast.Node node = varDecl.getWrappedNode();
-                    if (node instanceof com.github.javaparser.ast.expr.VariableDeclarationExpr vde) {
-                        for (com.github.javaparser.ast.body.VariableDeclarator v : vde.getVariables()) {
-                            if (v.getNameAsString().equals(resolved.getName()) && v.getInitializer().isPresent()) {
-                                return resolveArgument(v.getInitializer().get());
-                            }
-                        }
-                    } else if (node instanceof com.github.javaparser.ast.body.VariableDeclarator v) {
-                        if (v.getInitializer().isPresent()) {
-                            return resolveArgument(v.getInitializer().get());
-                        }
-                    }
-                }
-
-                // Check if it's a field
-                if (resolved instanceof JavaParserFieldDeclaration fieldDecl) {
-                    com.github.javaparser.ast.Node node = fieldDecl.getWrappedNode();
-                    if (node instanceof com.github.javaparser.ast.body.FieldDeclaration fd) {
-                        for (com.github.javaparser.ast.body.VariableDeclarator v : fd.getVariables()) {
-                            if (v.getNameAsString().equals(resolved.getName()) && v.getInitializer().isPresent()) {
-                                return resolveArgument(v.getInitializer().get());
-                            }
-                        }
-                    } else if (node instanceof com.github.javaparser.ast.body.VariableDeclarator v) {
-                        if (v.getInitializer().isPresent()) {
-                            return resolveArgument(v.getInitializer().get());
-                        }
-                    } else if (node instanceof com.github.javaparser.ast.body.EnumConstantDeclaration ecd) {
-                        // Enums are harder to map to string literals, ignore for now
-                    }
-                }
-
-            } catch (Exception e) {
-                // Resolution failed
-            }
-        }
-
-        return expr.toString();
     }
 }
