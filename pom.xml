@@ -5,99 +5,55 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.0.1</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<version>3.2.0</version>
+		<relativePath/>
 	</parent>
 	<groupId>com.vidnyan</groupId>
 	<artifactId>ate</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>ate</name>
-	<description>ate project </description>
-	<url/>
-	<licenses>
-		<license/>
-	</licenses>
-	<developers>
-		<developer/>
-	</developers>
-	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
-	</scm>
+	<name>ATE - Agentic Static Analysis Engine</name>
+	<description>ArchUnit + Gen AI powered static analysis</description>
+	
 	<properties>
 		<java.version>21</java.version>
+		<archunit.version>1.2.1</archunit.version>
 	</properties>
+	
 	<dependencies>
+		<!-- Spring Boot -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webmvc</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webmvc-test</artifactId>
-			<scope>test</scope>
+			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 		
-		<!-- JavaParser for AST parsing -->
+		<!-- ArchUnit - Core parsing library -->
 		<dependency>
-			<groupId>com.github.javaparser</groupId>
-			<artifactId>javaparser-core</artifactId>
-			<version>3.26.2</version>
-		</dependency>
-		<dependency>
-			<groupId>com.github.javaparser</groupId>
-			<artifactId>javaparser-symbol-solver-core</artifactId>
-			<version>3.26.2</version>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit</artifactId>
+			<version>${archunit.version}</version>
 		</dependency>
 		
-		<!-- Jackson for JSON rule definitions -->
+		<!-- Jackson for JSON -->
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-core</artifactId>
-		</dependency>
 		
-		<!-- Apache Commons for utilities -->
+		<!-- Spring annotations for analysis targets -->
 		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-lang3</artifactId>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-tx</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>commons-io</groupId>
-			<artifactId>commons-io</artifactId>
-			<version>2.15.1</version>
-		</dependency>
-		
-		<!-- Spring JDBC for test examples -->
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-jdbc</artifactId>
 		</dependency>
 		
-		<!-- Spring Retry for test examples -->
-		<dependency>
-			<groupId>org.springframework.retry</groupId>
-			<artifactId>spring-retry</artifactId>
-			<version>2.0.5</version>
-		</dependency>
+		<!-- Test -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webflux</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.kafka</groupId>
-			<artifactId>spring-kafka</artifactId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
@@ -110,25 +66,11 @@
 					<source>21</source>
 					<target>21</target>
 					<release>21</release>
-					<annotationProcessorPaths>
-						<path>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</path>
-					</annotationProcessorPaths>
 				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<excludes>
-						<exclude>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</exclude>
-					</excludes>
-				</configuration>
 			</plugin>
 		</plugins>
 	</build>

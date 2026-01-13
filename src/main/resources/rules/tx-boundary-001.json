@@ -1,42 +1,16 @@
 {
   "id": "TX-BOUNDARY-001",
-  "name": "No Remote Calls Inside Transaction",
-  "description": "Remote calls (HTTP, messaging) inside @Transactional methods can cause issues if the remote service is slow or unavailable, holding database connections and potentially causing timeouts.",
-  "severity": "BLOCKER",
-  "category": "TRANSACTION_SAFETY",
-  "isEnabled": true,
-  "detection": {
-    "entryPoints": {
-      "annotations": [
-        "org.springframework.transaction.annotation.Transactional"
-      ],
-      "types": [],
-      "methodPatterns": []
-    },
-    "sinks": {
-      "annotations": [],
-      "types": [
-        "org.springframework.web.client.RestTemplate",
-        "org.springframework.web.reactive.function.client.WebClient",
-        "org.springframework.kafka.core.KafkaTemplate",
-        "java.net.http.HttpClient",
-        "org.apache.kafka.clients.producer.KafkaProducer",
-        "org.apache.http.client.HttpClient",
-        "feign.Client"
-      ],
-      "methodPatterns": []
-    },
-    "pathConstraints": {
-      "mustContain": [],
-      "mustNotContain": [],
-      "maxDepth": 30
-    }
-  },
-  "remediation": {
-    "quickFix": "Move the remote call outside the @Transactional boundary",
-    "explanation": "Database transactions should be short-lived. If a remote call fails or is slow, it holds the database connection, which can exhaust the connection pool.",
-    "references": [
-      "https://docs.spring.io/spring-framework/reference/data-access/transaction.html"
+  "name": "No Remote Calls in Transactions",
+  "description": "Methods annotated with @Transactional should not make remote HTTP calls (RestTemplate, WebClient) as this can cause long-running transactions and database lock issues.",
+  "severity": "ERROR",
+  "config": {
+    "annotationRequired": "Transactional",
+    "sinkPatterns": [
+      "RestTemplate.getForObject",
+      "RestTemplate.postForObject",
+      "RestTemplate.exchange",
+      "WebClient.get",
+      "WebClient.post"
     ]
   }
 }
