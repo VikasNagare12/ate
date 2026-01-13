@@ -1,7 +1,7 @@
 package com.vidnyan.ate;
 
+import com.vidnyan.ate.agent.Orchestrator;
 import com.vidnyan.ate.analyzer.HybridAnalyzer;
-import com.vidnyan.ate.core.GenAiEvaluator;
 import com.vidnyan.ate.core.RuleRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,8 +13,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Command Line Runner for analysis.
- * Loads all rules and processes the target codebase on startup.
+ * Command Line Runner that executes the multi-agent analysis.
  */
 @Component
 public class AnalysisRunner implements CommandLineRunner {
@@ -22,7 +21,7 @@ public class AnalysisRunner implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(AnalysisRunner.class);
 
     private final HybridAnalyzer hybridAnalyzer;
-    private final GenAiEvaluator evaluator;
+    private final Orchestrator orchestrator;
     private final RuleRepository ruleRepository;
 
     @Value("${ate.analysis.source-path:}")
@@ -34,9 +33,9 @@ public class AnalysisRunner implements CommandLineRunner {
     @Value("${ate.analysis.enabled:true}")
     private boolean analysisEnabled;
 
-    public AnalysisRunner(HybridAnalyzer hybridAnalyzer, GenAiEvaluator evaluator, RuleRepository ruleRepository) {
+    public AnalysisRunner(HybridAnalyzer hybridAnalyzer, Orchestrator orchestrator, RuleRepository ruleRepository) {
         this.hybridAnalyzer = hybridAnalyzer;
-        this.evaluator = evaluator;
+        this.orchestrator = orchestrator;
         this.ruleRepository = ruleRepository;
     }
 
@@ -47,73 +46,83 @@ public class AnalysisRunner implements CommandLineRunner {
             return;
         }
 
-        // Parse command line arguments or use config
-        String source = getArgOrConfig(args, 0, sourcePath, "source-path");
-        String classes = getArgOrConfig(args, 1, classesPath, "classes-path");
+        String source = getArgOrConfig(args, 0, sourcePath);
+        String classes = getArgOrConfig(args, 1, classesPath);
 
         if (source.isEmpty() || classes.isEmpty()) {
             printUsage();
             return;
         }
 
+        log.info("");
         log.info("╔══════════════════════════════════════════════════════════════╗");
-        log.info("║     ATE - Ultimate Hybrid Static Analysis Engine             ║");
-        log.info("║     SootUp + JavaParser + Gen AI                             ║");
+        log.info("║     ATE - AI AGENTS FOR STATIC CODE ANALYSIS                 ║");
+        log.info("║     Powered by: SootUp + JavaParser + Gen AI                 ║");
         log.info("╚══════════════════════════════════════════════════════════════╝");
         log.info("");
         log.info("Source path:  {}", source);
         log.info("Classes path: {}", classes);
-        log.info("");
 
-        // 1. Perform hybrid analysis
-        log.info("=== Phase 1: Hybrid Analysis (JavaParser + SootUp) ===");
-        HybridAnalyzer.HybridAnalysisResult context = hybridAnalyzer.analyze(
+        // Phase 1: Hybrid code analysis (SootUp + JavaParser)
+        log.info("");
+        log.info("═══ PHASE 1: CODE ANALYSIS (SootUp + JavaParser) ═══");
+        HybridAnalyzer.HybridAnalysisResult codeContext = hybridAnalyzer.analyze(
             Path.of(source),
             Path.of(classes)
         );
-        log.info("Analyzed {} methods", context.methods().size());
+        log.info("Methods analyzed: {}", codeContext.methods().size());
 
-        // 2. Load all rules
+        // Phase 2: Load rules
         log.info("");
-        log.info("=== Phase 2: Loading Rules ===");
+        log.info("═══ PHASE 2: LOADING RULES ═══");
         List<RuleRepository.Rule> rules = ruleRepository.loadAllRules();
-        log.info("Loaded {} rules", rules.size());
+        log.info("Rules loaded: {}", rules.size());
+        rules.forEach(r -> log.info("  - {}: {}", r.id(), r.name()));
 
-        // 3. Evaluate each rule
+        // Phase 3: Multi-Agent Analysis
         log.info("");
-        log.info("=== Phase 3: Rule Evaluation (Gen AI) ===");
-        int totalViolations = 0;
-        
-        for (RuleRepository.Rule rule : rules) {
+        log.info("═══ PHASE 3: MULTI-AGENT ANALYSIS ═══");
+        Orchestrator.AnalysisReport report = orchestrator.analyze(codeContext, rules);
+
+        // Phase 4: Print detailed report
+        log.info("");
+        printReport(report);
+    }
+
+    private void printReport(Orchestrator.AnalysisReport report) {
+        log.info("╔══════════════════════════════════════════════════════════════╗");
+        log.info("║                    ANALYSIS REPORT                           ║");
+        log.info("╚══════════════════════════════════════════════════════════════╝");
+
+        for (Orchestrator.RuleReport ruleReport : report.ruleReports()) {
             log.info("");
-            log.info("Evaluating: {} - {}", rule.id(), rule.name());
-            
-            GenAiEvaluator.EvaluationResult result = evaluator.evaluate(context, rule);
-            
-            if (result.hasViolations()) {
-                log.warn("  FOUND {} violations!", result.violations().size());
-                totalViolations += result.violations().size();
-                
-                for (GenAiEvaluator.Violation v : result.violations()) {
-                    log.warn("    - {}: {}", v.methodName(), v.message());
-                }
-            } else {
-                log.info("  No violations found.");
+            log.info("Rule: {} - {}", ruleReport.rule().id(), ruleReport.rule().name());
+            log.info("Violations: {}", ruleReport.violations().size());
+
+            for (Orchestrator.ViolationReport v : ruleReport.violations()) {
+                log.info("");
+                log.warn("  ⚠️ VIOLATION: {}", v.violation().methodFqn());
+                log.warn("     Line: {}", v.violation().lineNumber());
+                log.warn("     Issue: {}", v.violation().reason());
+                log.info("");
+                log.info("     📖 EXPLANATION:");
+                log.info("     {}", v.explanation().explanation());
+                log.info("");
+                log.info("     🔧 SUGGESTED FIX:");
+                log.info("     {}", v.fix().primaryFix());
+                log.info("");
+                log.info("     Alternative approaches:");
+                v.fix().alternatives().forEach(alt -> log.info("       • {}", alt));
             }
         }
 
-        // 4. Summary
         log.info("");
         log.info("═══════════════════════════════════════════════════════════════");
-        log.info("                      ANALYSIS COMPLETE                         ");
-        log.info("═══════════════════════════════════════════════════════════════");
-        log.info("  Methods analyzed: {}", context.methods().size());
-        log.info("  Rules evaluated:  {}", rules.size());
-        log.info("  Total violations: {}", totalViolations);
+        log.info("SUMMARY: {} rules, {} violations", report.rulesProcessed(), report.totalViolations());
         log.info("═══════════════════════════════════════════════════════════════");
     }
 
-    private String getArgOrConfig(String[] args, int index, String configValue, String name) {
+    private String getArgOrConfig(String[] args, int index, String configValue) {
         if (args.length > index && !args[index].isEmpty()) {
             return args[index];
         }
@@ -127,9 +136,5 @@ public class AnalysisRunner implements CommandLineRunner {
         log.info("Or configure in application.properties:");
         log.info("  ate.analysis.source-path=/path/to/src/main/java");
         log.info("  ate.analysis.classes-path=/path/to/target/classes");
-        log.info("");
-        log.info("Example:");
-        log.info("  java -jar ate.jar ./src/main/java ./target/classes");
-        log.info("");
     }
 }
