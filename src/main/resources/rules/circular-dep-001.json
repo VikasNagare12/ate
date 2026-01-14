@@ -1,10 +1,10 @@
 {
   "id": "CIRCULAR-DEP-001",
   "name": "Circular Package Dependency",
-  "description": "Circular dependencies between packages make the code harder to understand, test, and refactor. They can also cause issues with dependency injection and class loading.",
+  "description": "You are analyzing package structures for circular dependencies. A violation occurs if Package A depends on Package B, and Package B (directly or indirectly) depends back on Package A. This creates tight coupling and makes the system hard to verify. Suggest applying the Dependency Inversion Principle (DIP) or extracting shared logic to a third common package.",
   "severity": "ERROR",
   "category": "CIRCULAR_DEPENDENCY",
-  "isEnabled": false,
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": [],

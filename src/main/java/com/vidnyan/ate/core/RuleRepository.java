@@ -68,7 +68,8 @@ public class RuleRepository {
         String name,
         String description,
         String severity,
-        RuleConfig config
+            RuleConfig config,
+            Detection detection
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -77,4 +78,24 @@ public class RuleRepository {
         List<String> sourcePatterns,
         String annotationRequired
     ) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Detection(
+            EntryPoints entryPoints,
+            Sinks sinks) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record EntryPoints(
+            List<String> annotations,
+            List<String> types,
+            List<String> methodPatterns) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Sinks(
+            List<String> annotations,
+            List<String> types,
+            List<String> methodPatterns) {
+    }
 }

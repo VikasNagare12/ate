@@ -1,7 +1,7 @@
 {
   "id": "TX-BOUNDARY-001",
   "name": "No Remote Calls in Transactions",
-  "description": "Methods annotated with @Transactional should not make remote HTTP calls (RestTemplate, WebClient) as this can cause long-running transactions and database lock issues.",
+  "description": "You are an expert software architect. Validate that methods annotated with @Transactional do NOT make remote calls (e.g., REST, Feign, Kafka). A violation occurs if a RestTemplate, WebClient, HttpClient, or @FeignClient call is found inside a @Transactional method or its call chain. This causes long database transactions and connection pool exhaustion.",
   "severity": "ERROR",
   "config": {
     "annotationRequired": "Transactional",

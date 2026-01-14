@@ -1,10 +1,10 @@
 {
   "id": "SAME-TABLE-UPDATE-001",
   "name": "Multiple Updates to Same Table",
-  "description": "Multiple update/insert operations on the same table within a single transaction can indicate inefficient design or potential race conditions.",
+  "description": "You are optimizing database performance. A violation occurs if a single transaction performs multiple separate updates or inserts to the *same* database table. This indicates inefficient code that should be batched (e.g., batchUpdate) to reduce network round-trips and lock contention.",
   "severity": "WARN",
   "category": "PERFORMANCE",
-  "isEnabled": false,
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": ["org.springframework.transaction.annotation.Transactional"],

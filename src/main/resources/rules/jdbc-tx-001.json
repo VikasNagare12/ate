@@ -1,10 +1,10 @@
 {
   "id": "JDBC-TX-001",
   "name": "JDBC Operations Must Be Transactional",
-  "description": "All database operations (JDBC, JPA) must be executed within an active transaction context (@Transactional) to ensure data consistency and atomicity.",
+  "description": "You are enforcing transaction boundaries for database writes. A violation occurs if a method performs database modifications (insert, update, delete) using JDBC or JPA but is NOT running within a @Transactional context. This risks data inconsistency if the operation fails halfway.",
   "severity": "CRITICAL",
   "category": "TRANSACTION_SAFETY",
-  "isEnabled": false,
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": [],
@@ -20,7 +20,16 @@
         "javax.persistence.EntityManager",
         "jakarta.persistence.EntityManager"
       ],
-      "methodPatterns": []
+      "methodPatterns": [
+        "update",
+        "batchUpdate",
+        "execute",
+        "persist",
+        "merge",
+        "remove",
+        "save",
+        "delete"
+      ]
     },
     "pathConstraints": {
       "mustContain": [],

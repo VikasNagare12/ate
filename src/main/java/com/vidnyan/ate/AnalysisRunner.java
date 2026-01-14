@@ -120,6 +120,9 @@ public class AnalysisRunner implements CommandLineRunner {
         log.info("═══════════════════════════════════════════════════════════════");
         log.info("SUMMARY: {} rules, {} violations", report.rulesProcessed(), report.totalViolations());
         log.info("═══════════════════════════════════════════════════════════════");
+
+        // Force exit to prevent hanging non-daemon threads
+        System.exit(0);
     }
 
     private String getArgOrConfig(String[] args, int index, String configValue) {

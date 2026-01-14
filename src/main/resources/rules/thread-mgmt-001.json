@@ -1,10 +1,10 @@
 {
   "id": "THREAD-MGMT-001",
   "name": "Direct Thread Creation",
-  "description": "Direct Thread creation bypasses Spring's thread management. Use @Async or TaskExecutor/ExecutorService instead for proper lifecycle management and monitoring.",
+  "description": "You are enforcing proper thread management. A violation occurs if the code manually creates threads (e.g., new Thread(), Thread.start()) instead of using Spring's managed executors (e.g., @Async, TaskExecutor). Unmanaged threads are hard to monitor and can leak resources.",
   "severity": "ERROR",
   "category": "ASYNC_SAFETY",
-  "isEnabled": false,
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": [],

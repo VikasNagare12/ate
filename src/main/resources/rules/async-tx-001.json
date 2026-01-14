@@ -1,10 +1,10 @@
 {
   "id": "ASYNC-TX-001",
   "name": "Async Transaction Context Loss",
-  "description": "@Async methods run in a different thread, so the @Transactional context does NOT propagate. If you need transactions, start a new one in the async method.",
+  "description": "You are checking for lost transaction contexts in asynchronous methods. A violation occurs when a method annotated with @Async calls a method annotated with @Transactional (or relies on an existing transaction). Since @Async runs in a new thread, the thread-local transaction context is lost. To fix this, the @Async method itself or the called method must start a *new* transaction explicitly.",
   "severity": "ERROR",
   "category": "ASYNC_SAFETY",
-  "isEnabled": false,
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": [

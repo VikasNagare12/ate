@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -77,13 +78,36 @@ public class RuleInterpretationAgent implements Agent<RuleRepository.Rule, RuleI
         String response = llmClient.chat(getSystemPrompt(), userPrompt);
         log.debug("[{}] LLM Response: {}", getName(), response);
         
-        // For now, create interpreted rule from config
+        // Helper to get annotation required
+        String annotation = null;
+        if (rule.config() != null) {
+            annotation = rule.config().annotationRequired();
+        } else if (rule.detection() != null && rule.detection().entryPoints() != null) {
+            List<String> validAnnotations = rule.detection().entryPoints().annotations();
+            if (validAnnotations != null && !validAnnotations.isEmpty()) {
+                // Extract simple name (last part)
+                String fqn = validAnnotations.get(0);
+                annotation = fqn.substring(fqn.lastIndexOf('.') + 1);
+            }
+        }
+        
+        // Helper to get sink patterns
+        List<String> patterns = new ArrayList<>();
+        if (rule.config() != null && rule.config().sinkPatterns() != null) {
+            patterns.addAll(rule.config().sinkPatterns());
+        } else if (rule.detection() != null && rule.detection().sinks() != null) {
+            RuleRepository.Sinks sinks = rule.detection().sinks();
+            if (sinks.types() != null) patterns.addAll(sinks.types());
+            if (sinks.methodPatterns() != null) patterns.addAll(sinks.methodPatterns());
+        }
+
+        // For now, create interpreted rule from config OR detection
         // In production, parse the LLM response
         return new InterpretedRule(
             rule.id(),
             rule.name(),
-            rule.config() != null ? rule.config().annotationRequired() : null,
-            rule.config() != null ? rule.config().sinkPatterns() : List.of(),
+            annotation,
+            patterns,
             true, // Check call chain
             rule.description()
         );

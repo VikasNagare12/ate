@@ -1,10 +1,10 @@
 {
   "id": "JDBC-RETRY-001",
   "name": "JDBC Operations Without Retry",
-  "description": "Database operations can fail due to transient errors (network issues, deadlocks). Without retry logic, these failures propagate to users.",
+  "description": "You are verifying that database operations are resilient to transient failures. A violation occurs if a method uses JdbcTemplate, EntityManager, or JpaRepository but does not have retry logic (like @Retryable or Resilience4j). Database calls can fail temporarily; without retries, these errors impact availability.",
   "severity": "WARN",
   "category": "RETRY_SAFETY",
-  "isEnabled": false,
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": [],
@@ -19,7 +19,16 @@
         "javax.persistence.EntityManager",
         "jakarta.persistence.EntityManager"
       ],
-      "methodPatterns": []
+      "methodPatterns": [
+        "update",
+        "batchUpdate",
+        "execute",
+        "persist",
+        "merge",
+        "remove",
+        "save",
+        "delete"
+      ]
     },
     "pathConstraints": {
       "mustContain": [],

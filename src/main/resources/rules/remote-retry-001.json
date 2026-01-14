@@ -1,10 +1,10 @@
 {
   "id": "REMOTE-RETRY-001",
   "name": "No Retry on Non-Idempotent Remote Calls",
-  "description": "Remote calls (HTTP, Kafka) should not be wrapped in retry logic without explicit idempotency handling, as it can lead to duplicate requests or messages if the failure occurs after the remote side has processed the request.",
+  "description": "You are ensuring checking that retries are safe. A violation occurs if a remote call (HTTP, messaging) is annotated with @Retryable but valid idempotency is not guaranteed. Retrying non-idempotent calls (like POST) can cause duplicate data creation. If the method is a POST/PUT, warn about potential duplication unless idempotency keys are used.",
   "severity": "CRITICAL",
   "category": "RETRY_SAFETY",
-  "isEnabled": false,
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": [

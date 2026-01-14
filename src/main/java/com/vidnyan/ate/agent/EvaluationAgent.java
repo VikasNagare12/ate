@@ -55,35 +55,9 @@ public class EvaluationAgent implements Agent<CodeAnalysisAgent.AnalysisResult, 
         List<Violation> violations = new ArrayList<>();
         
         for (HybridAnalyzer.RichMethodContext method : analysisResult.relevantMethods()) {
-            // Check if method calls any forbidden patterns
-            boolean callsForbidden = false;
-            String matchedPattern = null;
+            String matchedPattern = findForbiddenPattern(method, analysisResult.rule().forbiddenPatterns());
             
-            for (String pattern : analysisResult.rule().forbiddenPatterns()) {
-                // Check direct calls
-                for (String call : method.directCalls()) {
-                    if (call.contains(pattern.replace(".", ""))) {
-                        callsForbidden = true;
-                        matchedPattern = call;
-                        break;
-                    }
-                }
-                
-                // Check deep call chain
-                if (!callsForbidden) {
-                    for (String call : method.deepCallChain()) {
-                        if (call.contains(pattern)) {
-                            callsForbidden = true;
-                            matchedPattern = call;
-                            break;
-                        }
-                    }
-                }
-                
-                if (callsForbidden) break;
-            }
-            
-            if (callsForbidden) {
+            if (matchedPattern != null) {
                 violations.add(new Violation(
                     analysisResult.rule().ruleId(),
                     method.fullyQualifiedName(),
@@ -96,7 +70,7 @@ public class EvaluationAgent implements Agent<CodeAnalysisAgent.AnalysisResult, 
             }
         }
         
-        // Also consult LLM for more nuanced evaluation
+        // Consult LLM for more nuanced evaluation
         String userPrompt = String.format("""
             Evaluate these findings:
             
@@ -118,6 +92,63 @@ public class EvaluationAgent implements Agent<CodeAnalysisAgent.AnalysisResult, 
             violations,
             llmEvaluation
         );
+    }
+
+    /**
+     * Find if method calls any forbidden pattern.
+     * Checks: direct calls, deep call chain, and source code.
+     */
+    private String findForbiddenPattern(HybridAnalyzer.RichMethodContext method, List<String> forbiddenPatterns) {
+        if (forbiddenPatterns == null || forbiddenPatterns.isEmpty()) {
+            return null;
+        }
+
+        for (String pattern : forbiddenPatterns) {
+            // Extract simple class name for matching (e.g., "RestTemplate" from
+            // "org.springframework.web.client.RestTemplate")
+            String simpleName = extractSimpleName(pattern);
+
+            // Check 1: Direct calls from JavaParser
+            for (String call : method.directCalls()) {
+                if (matchesPattern(call, pattern, simpleName)) {
+                    log.debug("Found match in direct call: {} matches {}", call, pattern);
+                    return call;
+                }
+            }
+
+            // Check 2: Deep call chain from SootUp
+            for (String call : method.deepCallChain()) {
+                if (matchesPattern(call, pattern, simpleName)) {
+                    log.debug("Found match in deep call: {} matches {}", call, pattern);
+                    return call;
+                }
+            }
+
+            // Check 3: Source code contains the pattern (most reliable for examples)
+            String sourceCode = method.sourceCode();
+            if (sourceCode != null) {
+                if (sourceCode.contains(simpleName) || sourceCode.contains(pattern)) {
+                    log.debug("Found match in source code: {} contains {}", method.methodName(), simpleName);
+                    return simpleName + " (in source)";
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private boolean matchesPattern(String call, String fullPattern, String simpleName) {
+        if (call == null)
+            return false;
+        // Match full pattern or simple name
+        return call.contains(fullPattern) || call.contains(simpleName);
+    }
+
+    private String extractSimpleName(String fqn) {
+        if (fqn == null)
+            return "";
+        int lastDot = fqn.lastIndexOf('.');
+        return lastDot >= 0 ? fqn.substring(lastDot + 1) : fqn;
     }
 
     public record EvaluationResult(

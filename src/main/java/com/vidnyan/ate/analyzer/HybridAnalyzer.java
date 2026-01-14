@@ -77,12 +77,36 @@ public class HybridAnalyzer {
         SootUpAnalyzer.CallGraphResult callGraphAnalysis
     ) {
         public List<RichMethodContext> getMethodsWithAnnotation(String annotationName) {
+            if (annotationName == null || annotationName.isEmpty()) {
+                return List.of();
+            }
             return methods.values().stream()
                 .filter(m -> m.annotations().stream()
-                    .anyMatch(a -> a.contains(annotationName)))
+                            .anyMatch(a -> a != null && a.contains(annotationName)))
                 .toList();
         }
         
+        public List<RichMethodContext> getMethodsCallingAny(List<String> patterns) {
+            if (patterns == null || patterns.isEmpty()) {
+                return List.of();
+            }
+            return methods.values().stream()
+                    .filter(m -> {
+                        // Check direct calls
+                        for (String call : m.directCalls()) {
+                            for (String pattern : patterns) {
+                                if (call.contains(pattern))
+                                    return true;
+                            }
+                        }
+                        // Check deep calls (optional, can be expensive so maybe limit?)
+                        // For now, let's stick to direct calls and source code for broader matching?
+                        // Or check Source Code as well?
+                        return false;
+                    })
+                    .toList();
+        }
+
         public Optional<RichMethodContext> getMethod(String fqn) {
             return Optional.ofNullable(methods.get(fqn));
         }

@@ -52,12 +52,24 @@ public class CodeAnalysisAgent implements Agent<CodeAnalysisAgent.AnalysisReques
     public AnalysisResult execute(AnalysisRequest request) {
         log.info("[{}] Analyzing code for rule: {}", getName(), request.interpretedRule().ruleId());
         
-        // Get methods with target annotation
-        List<HybridAnalyzer.RichMethodContext> relevantMethods = 
-            request.context().getMethodsWithAnnotation(request.interpretedRule().targetAnnotation());
+        // Get methods based on annotation OR forbidden patterns
+        List<HybridAnalyzer.RichMethodContext> relevantMethods;
+        String criteriaType;
+        String criteriaValue;
+
+        if (request.interpretedRule().targetAnnotation() != null) {
+            relevantMethods = request.context().getMethodsWithAnnotation(request.interpretedRule().targetAnnotation());
+            criteriaType = "annotation";
+            criteriaValue = "@" + request.interpretedRule().targetAnnotation();
+        } else {
+            // If no annotation, look for methods that call the forbidden patterns (Sinks)
+            relevantMethods = request.context().getMethodsCallingAny(request.interpretedRule().forbiddenPatterns());
+            criteriaType = "calls to";
+            criteriaValue = request.interpretedRule().forbiddenPatterns().toString();
+        }
         
-        log.info("[{}] Found {} methods with @{}", 
-            getName(), relevantMethods.size(), request.interpretedRule().targetAnnotation());
+        log.info("[{}] Found {} methods with {}",
+                getName(), relevantMethods.size(), criteriaValue);
         
         // Build context for LLM
         StringBuilder methodsContext = new StringBuilder();

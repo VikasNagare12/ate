@@ -60,8 +60,9 @@ public class LlmClient {
         try {
             return callGroq(systemPrompt, userPrompt);
         } catch (Exception e) {
-            log.error("LLM call failed: {}", e.getMessage());
-            throw new RuntimeException("LLM API call failed: " + e.getMessage(), e);
+            log.warn("LLM call failed (using fallback): {}", e.getMessage());
+            // Fail gracefully so analysis can continue
+            return "[LLM Analysis Unavailable - " + e.getMessage() + "] Check static analysis findings directly.";
         }
     }
 

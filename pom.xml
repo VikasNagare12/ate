@@ -77,6 +77,12 @@
 			<artifactId>spring-jdbc</artifactId>
 		</dependency>
 		
+		<!-- Spring Retry for @Retryable -->
+		<dependency>
+			<groupId>org.springframework.retry</groupId>
+			<artifactId>spring-retry</artifactId>
+		</dependency>
+		
 		<!-- Test -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
