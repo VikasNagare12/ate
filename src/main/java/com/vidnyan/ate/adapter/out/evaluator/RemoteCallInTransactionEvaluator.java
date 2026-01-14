@@ -1,4 +1,4 @@
-package com.vidnyan.ate.adapter.out.evaluator.async;
+package com.vidnyan.ate.adapter.out.evaluator;
 
 import com.vidnyan.ate.analyzer.SootUpEvaluationContext;
 import com.vidnyan.ate.domain.model.Location;
@@ -22,11 +22,18 @@ import java.util.*;
 
 @Slf4j
 @Component
-public class AsyncTransactionSafetyEvaluator implements RuleEvaluator {
+public class RemoteCallInTransactionEvaluator implements RuleEvaluator {
+
+    private static final Set<String> REMOTE_TYPES = Set.of(
+            "org.springframework.web.client.RestTemplate",
+            "org.springframework.web.reactive.function.client.WebClient",
+            "java.net.http.HttpClient",
+            "org.apache.http.client.HttpClient",
+            "java.net.HttpURLConnection");
 
     @Override
     public boolean supports(RuleDefinition rule) {
-        return "ASYNC-TX-001".equals(rule.id());
+        return "TX-BOUNDARY-001".equals(rule.id());
     }
 
     @Override
@@ -40,9 +47,9 @@ public class AsyncTransactionSafetyEvaluator implements RuleEvaluator {
         for (JavaSootClass clazz : view.getClasses().stream().map(c -> (JavaSootClass) c).toList()) {
             for (SootMethod method : clazz.getMethods()) {
                 if (((JavaSootMethod) method).hasBody()) {
-                    if (hasAnnotation(method, view, "Async")) {
+                    if (hasAnnotation(method, view, "Transactional")) {
                         checked++;
-                        checkAsyncCalls(method, view, violations, context.rule());
+                        checkRemoteCalls(method, view, violations, context.rule());
                     }
                 }
             }
@@ -51,11 +58,8 @@ public class AsyncTransactionSafetyEvaluator implements RuleEvaluator {
         return EvaluationResult.success(context.rule().id(), violations, Duration.between(start, Instant.now()), checked);
     }
 
-    private void checkAsyncCalls(SootMethod entryMethod, JavaView view, List<Violation> violations,
-                                 RuleDefinition rule) {
-        // ASYNC-TX-001: Detect @Async method calling @Transactional method (directly or indirectly)
-        // This is a graph traversal problem. We want to find a path from @Async -> @Transactional
-
+    private void checkRemoteCalls(SootMethod entryMethod, JavaView view, List<Violation> violations,
+                                  RuleDefinition rule) {
         Queue<MethodSignature> queue = new LinkedList<>();
         Set<MethodSignature> visited = new HashSet<>();
         Map<MethodSignature, List<String>> paths = new HashMap<>();
@@ -73,33 +77,29 @@ public class AsyncTransactionSafetyEvaluator implements RuleEvaluator {
                 continue;
 
             Optional<? extends SootMethod> targetOpt = view.getMethod(currentSig);
-            if (targetOpt.isEmpty())
+            if (targetOpt.isEmpty() || !((JavaSootMethod) targetOpt.get()).hasBody())
                 continue;
-            
-            SootMethod currentMethod = targetOpt.get();
-            
-            // If checking a called method (not the entry point itself), check if it is @Transactional
-            if (!currentSig.equals(entryMethod.getSignature())) {
-                 if (hasAnnotation(currentMethod, view, "Transactional")) {
-                     violations.add(Violation.builder()
-                            .ruleId(rule.id())
-                            .message("@Async method calling @Transactional method: Context detected loss")
-                            .callChain(currentPath)
-                            .location(Location.at(
-                                    entryMethod.getDeclaringClassType().toString() + "." + entryMethod.getName(), 0, 0))
-                            .build());
-                    return; // Found a violation path, stop for this entry method
-                 }
-            }
 
-            if (!((JavaSootMethod) currentMethod).hasBody()) continue;
-
+            JavaSootMethod method = (JavaSootMethod) targetOpt.get();
             try {
-                for (Stmt stmt : ((JavaSootMethod) currentMethod).getBody().getStmtGraph().getStmts()) {
+                for (Stmt stmt : method.getBody().getStmtGraph().getStmts()) {
                     if (stmt.containsInvokeExpr()) {
                         AbstractInvokeExpr invoke = stmt.getInvokeExpr();
-                        MethodSignature targetSig = invoke.getMethodSignature();
 
+                        if (isRemoteCall(invoke, view)) {
+                            violations.add(Violation.builder()
+                                    .ruleId(rule.id())
+                                    .message("Remote call detected inside @Transactional")
+                                    .callChain(append(currentPath,
+                                            invoke.getMethodSignature().getDeclClassType().toString() + "."
+                                                    + invoke.getMethodSignature().getName()))
+                                    .location(Location.at(
+                                            entryMethod.getDeclaringClassType().toString() + "." + entryMethod.getName(), 0, 0))
+                                    .build());
+                            return;
+                        }
+
+                        MethodSignature targetSig = invoke.getMethodSignature();
                         if (visited.add(targetSig)) {
                             if (view.getMethod(targetSig).isPresent()) {
                                 queue.add(targetSig);
@@ -110,9 +110,26 @@ public class AsyncTransactionSafetyEvaluator implements RuleEvaluator {
                     }
                 }
             } catch (Exception e) {
-                // Ignore
+                // Ignore body read errors
             }
         }
+    }
+
+    private boolean isRemoteCall(AbstractInvokeExpr invoke, JavaView view) {
+        String className = invoke.getMethodSignature().getDeclClassType().toString();
+
+        if (REMOTE_TYPES.stream().anyMatch(className::equals)) {
+            return true;
+        }
+
+        // Check for @FeignClient on the interface
+        Optional<JavaSootClass> optClass = view.getClass(view.getIdentifierFactory().getClassType(className))
+                .map(c -> (JavaSootClass) c);
+        if (optClass.isPresent()) {
+            return hasClassAnnotation(optClass.get(), view, "FeignClient");
+        }
+
+        return false;
     }
 
     private boolean hasAnnotation(SootMethod method, JavaView view, String annotationFragment) {
@@ -126,6 +143,19 @@ public class AsyncTransactionSafetyEvaluator implements RuleEvaluator {
             } catch (Exception e) {
                 return false;
             }
+        }
+        return false;
+    }
+
+    private boolean hasClassAnnotation(JavaSootClass clazz, JavaView view, String annotationFragment) {
+        try {
+            for (sootup.java.core.AnnotationUsage a : clazz.getAnnotations(Optional.of(view))) {
+                if (a.toString().contains(annotationFragment)) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            return false;
         }
         return false;
     }

@@ -1,4 +1,4 @@
-package com.vidnyan.ate.adapter.out.evaluator.concurrency;
+package com.vidnyan.ate.adapter.out.evaluator;
 
 import com.vidnyan.ate.analyzer.SootUpEvaluationContext;
 import com.vidnyan.ate.domain.model.Location;
