@@ -13,7 +13,6 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
-import java.util.List;
 
 /**
  * CLI Runner for standalone code analysis.

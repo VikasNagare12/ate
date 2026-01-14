@@ -1,0 +1,84 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.1)
+
+2026-01-14T18:27:42.185+05:30  INFO 10772 --- [           main] com.vidnyan.ate.AteApplication           : Starting AteApplication v0.0.1-SNAPSHOT using Java 25.0.1 with PID 10772 (/Users/vikas/Desktop/java/ate/target/ate-0.0.1-SNAPSHOT.jar started by vikas in /Users/vikas/Desktop/java/ate)
+2026-01-14T18:27:42.194+05:30  INFO 10772 --- [           main] com.vidnyan.ate.AteApplication           : No active profile set, falling back to 1 default profile: "default"
+2026-01-14T18:27:47.036+05:30  INFO 10772 --- [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8082 (http)
+2026-01-14T18:27:47.075+05:30  INFO 10772 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-01-14T18:27:47.075+05:30  INFO 10772 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-01-14T18:27:47.156+05:30  INFO 10772 --- [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 4725 ms
+2026-01-14T18:27:49.673+05:30  INFO 10772 --- [           main] c.v.a.a.o.p.FileSystemRuleRepository     : Loaded rule: ASYNC-TX-001 - Async Transaction Context Loss
+2026-01-14T18:27:49.676+05:30  INFO 10772 --- [           main] c.v.a.a.o.p.FileSystemRuleRepository     : Loaded rule: CIRCULAR-DEP-001 - Circular Package Dependency
+2026-01-14T18:27:49.680+05:30  INFO 10772 --- [           main] c.v.a.a.o.p.FileSystemRuleRepository     : Loaded rule: JDBC-RETRY-001 - JDBC Operations Without Retry
+2026-01-14T18:27:49.682+05:30  INFO 10772 --- [           main] c.v.a.a.o.p.FileSystemRuleRepository     : Loaded rule: JDBC-TX-001 - JDBC Operations Must Be Transactional
+2026-01-14T18:27:49.684+05:30  INFO 10772 --- [           main] c.v.a.a.o.p.FileSystemRuleRepository     : Loaded rule: REMOTE-RETRY-001 - No Retry on Non-Idempotent Remote Calls
+2026-01-14T18:27:49.687+05:30  INFO 10772 --- [           main] c.v.a.a.o.p.FileSystemRuleRepository     : Loaded rule: SAME-TABLE-UPDATE-001 - Multiple Updates to Same Table
+2026-01-14T18:27:49.689+05:30  INFO 10772 --- [           main] c.v.a.a.o.p.FileSystemRuleRepository     : Loaded rule: THREAD-MGMT-001 - Direct Thread Creation
+2026-01-14T18:27:49.690+05:30  INFO 10772 --- [           main] c.v.a.a.o.p.FileSystemRuleRepository     : Loaded rule: TX-BOUNDARY-001 - No Remote Calls Inside Transaction
+2026-01-14T18:27:49.690+05:30  INFO 10772 --- [           main] c.v.a.a.o.p.FileSystemRuleRepository     : Loaded 8 rules from classpath*:rules/*.json
+2026-01-14T18:27:52.428+05:30  INFO 10772 --- [           main] c.vidnyan.ate.config.AteConfiguration    : Registered 8 rule evaluators:
+2026-01-14T18:27:52.429+05:30  INFO 10772 --- [           main] c.vidnyan.ate.config.AteConfiguration    :   - CircularDependencyEvaluator
+2026-01-14T18:27:52.429+05:30  INFO 10772 --- [           main] c.vidnyan.ate.config.AteConfiguration    :   - AsyncTransactionSafetyEvaluator
+2026-01-14T18:27:52.429+05:30  INFO 10772 --- [           main] c.vidnyan.ate.config.AteConfiguration    :   - ThreadSafetyEvaluator
+2026-01-14T18:27:52.429+05:30  INFO 10772 --- [           main] c.vidnyan.ate.config.AteConfiguration    :   - JdbcRetrySafetyEvaluator
+2026-01-14T18:27:52.430+05:30  INFO 10772 --- [           main] c.vidnyan.ate.config.AteConfiguration    :   - JdbcTransactionSafetyEvaluator
+2026-01-14T18:27:52.430+05:30  INFO 10772 --- [           main] c.vidnyan.ate.config.AteConfiguration    :   - SameTableUpdateEvaluator
+2026-01-14T18:27:52.430+05:30  INFO 10772 --- [           main] c.vidnyan.ate.config.AteConfiguration    :   - RemoteCallInTransactionEvaluator
+2026-01-14T18:27:52.430+05:30  INFO 10772 --- [           main] c.vidnyan.ate.config.AteConfiguration    :   - RemoteRetrySafetyEvaluator
+2026-01-14T18:27:53.863+05:30  INFO 10772 --- [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8082 (http) with context path '/'
+2026-01-14T18:27:53.879+05:30  INFO 10772 --- [           main] com.vidnyan.ate.AteApplication           : Started AteApplication in 13.186 seconds (process running for 15.041)
+2026-01-14T18:27:53.886+05:30  INFO 10772 --- [           main] c.v.a.adapter.in.cli.AnalysisCliRunner   : ╔══════════════════════════════════════════════════════════════╗
+2026-01-14T18:27:53.887+05:30  INFO 10772 --- [           main] c.v.a.adapter.in.cli.AnalysisCliRunner   : ║           ATE - Architectural Transaction Engine              ║
+2026-01-14T18:27:53.887+05:30  INFO 10772 --- [           main] c.v.a.adapter.in.cli.AnalysisCliRunner   : ╠══════════════════════════════════════════════════════════════╣
+2026-01-14T18:27:53.889+05:30  INFO 10772 --- [           main] c.v.a.adapter.in.cli.AnalysisCliRunner   : ║ Analyzing: ...java/ate/target/ate-0.0.1-SNAPSHOT.jar.original
+2026-01-14T18:27:53.889+05:30  INFO 10772 --- [           main] c.v.a.adapter.in.cli.AnalysisCliRunner   : ╚══════════════════════════════════════════════════════════════╝
+2026-01-14T18:27:53.891+05:30  INFO 10772 --- [           main] c.v.a.a.s.AnalysisApplicationService     : Starting analysis of: /Users/vikas/Desktop/java/ate/target/ate-0.0.1-SNAPSHOT.jar.original
+2026-01-14T18:27:53.892+05:30  INFO 10772 --- [           main] c.v.a.a.s.AnalysisApplicationService     : Step 1: Initializing SootUp Analyzer...
+2026-01-14T18:27:53.940+05:30  WARN 10772 --- [           main] j.b.i.JavaClassPathAnalysisInputLocation : Invalid/Unknown class path entry: /Users/vikas/Desktop/java/ate/target/ate-0.0.1-SNAPSHOT.jar.original
+2026-01-14T18:27:53.957+05:30  INFO 10772 --- [           main] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+2026-01-14T18:27:53.976+05:30  INFO 10772 --- [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+2026-01-14T18:27:54.088+05:30  INFO 10772 --- [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-01-14T18:27:54.125+05:30 ERROR 10772 --- [           main] o.s.boot.SpringApplication               : Application run failed
+
+java.lang.IllegalArgumentException: The given classpath does not point to any existing directory/directories.
+	at sootup.java.bytecode.inputlocation.JavaClassPathAnalysisInputLocation.<init>(JavaClassPathAnalysisInputLocation.java:97) ~[sootup.java.bytecode-1.3.0.jar!/:na]
+	at sootup.java.bytecode.inputlocation.JavaClassPathAnalysisInputLocation.<init>(JavaClassPathAnalysisInputLocation.java:78) ~[sootup.java.bytecode-1.3.0.jar!/:na]
+	at sootup.java.bytecode.inputlocation.JavaClassPathAnalysisInputLocation.<init>(JavaClassPathAnalysisInputLocation.java:73) ~[sootup.java.bytecode-1.3.0.jar!/:na]
+	at com.vidnyan.ate.analyzer.SootUpAnalyzer.analyze(SootUpAnalyzer.java:26) ~[!/:0.0.1-SNAPSHOT]
+	at com.vidnyan.ate.application.service.AnalysisApplicationService.analyze(AnalysisApplicationService.java:44) ~[!/:0.0.1-SNAPSHOT]
+	at com.vidnyan.ate.adapter.in.cli.AnalysisCliRunner.run(AnalysisCliRunner.java:50) ~[!/:0.0.1-SNAPSHOT]
+	at org.springframework.boot.SpringApplication.lambda$callRunner$1(SpringApplication.java:792) ~[spring-boot-4.0.1.jar!/:4.0.1]
+	at org.springframework.util.function.ThrowingConsumer$1.acceptWithException(ThrowingConsumer.java:82) ~[spring-core-7.0.2.jar!/:7.0.2]
+	at org.springframework.util.function.ThrowingConsumer.accept(ThrowingConsumer.java:60) ~[spring-core-7.0.2.jar!/:7.0.2]
+	at org.springframework.util.function.ThrowingConsumer$1.accept(ThrowingConsumer.java:86) ~[spring-core-7.0.2.jar!/:7.0.2]
+	at org.springframework.boot.SpringApplication.callRunner(SpringApplication.java:800) ~[spring-boot-4.0.1.jar!/:4.0.1]
+	at org.springframework.boot.SpringApplication.callRunner(SpringApplication.java:791) ~[spring-boot-4.0.1.jar!/:4.0.1]
+	at org.springframework.boot.SpringApplication.lambda$callRunners$0(SpringApplication.java:776) ~[spring-boot-4.0.1.jar!/:4.0.1]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.accept(ForEachOps.java:186) ~[na:na]
+	at java.base/java.util.stream.SortedOps$SizedRefSortingSink.end(SortedOps.java:357) ~[na:na]
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:571) ~[na:na]
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:560) ~[na:na]
+	at java.base/java.util.stream.ForEachOps$ForEachOp.evaluateSequential(ForEachOps.java:153) ~[na:na]
+	at java.base/java.util.stream.ForEachOps$ForEachOp$OfRef.evaluateSequential(ForEachOps.java:176) ~[na:na]
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:265) ~[na:na]
+	at java.base/java.util.stream.ReferencePipeline.forEach(ReferencePipeline.java:632) ~[na:na]
+	at org.springframework.boot.SpringApplication.callRunners(SpringApplication.java:776) ~[spring-boot-4.0.1.jar!/:4.0.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:328) ~[spring-boot-4.0.1.jar!/:4.0.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1365) ~[spring-boot-4.0.1.jar!/:4.0.1]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-4.0.1.jar!/:4.0.1]
+	at com.vidnyan.ate.AteApplication.main(AteApplication.java:10) ~[!/:0.0.1-SNAPSHOT]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:106) ~[ate-0.0.1-SNAPSHOT.jar:0.0.1-SNAPSHOT]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:64) ~[ate-0.0.1-SNAPSHOT.jar:0.0.1-SNAPSHOT]
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:40) ~[ate-0.0.1-SNAPSHOT.jar:0.0.1-SNAPSHOT]
+

@@ -4,7 +4,7 @@
   "description": "Database operations can fail due to transient errors (network issues, deadlocks). Without retry logic, these failures propagate to users.",
   "severity": "WARN",
   "category": "RETRY_SAFETY",
-  "isEnabled": false,
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": [],

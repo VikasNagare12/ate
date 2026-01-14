@@ -1,27 +1,14 @@
 package com.vidnyan.ate.domain.model;
 
 /**
- * Source code location.
+ * Location in source code.
  */
-public record Location(
-    String filePath,
-    int line,
-    int column,
-    int endLine,
-    int endColumn
-) {
-    
-    /**
-     * Create a location with just line information.
-     */
-    public static Location at(String filePath, int line, int column) {
-        return new Location(filePath, line, column, line, column);
+public record Location(String file, int line, int column) {
+    public static Location at(String file, int line, int column) {
+        return new Location(file, line, column);
     }
-    
-    /**
-     * Format as readable string.
-     */
+
     public String format() {
-        return filePath + ":" + line + ":" + column;
+        return file + ":" + line;
     }
 }

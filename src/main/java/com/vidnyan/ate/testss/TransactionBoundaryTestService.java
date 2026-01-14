@@ -1,5 +1,6 @@
 package com.vidnyan.ate.testss;
 
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class TransactionBoundaryTestService {
     }
 
     @Transactional
+    @Retryable
     public void directHttpClientViolation() throws Exception {
         remoteService.callViaHttpClient();
     }
@@ -81,5 +83,13 @@ public class TransactionBoundaryTestService {
     @org.springframework.retry.annotation.Retryable
     public void indirectRetryViolation() {
         remoteService.callViaWebClient();
+    }
+
+    // Direct remote call inside @Retryable - should be detected
+    private final org.springframework.web.client.RestTemplate directRestTemplate = new org.springframework.web.client.RestTemplate();
+
+    @org.springframework.retry.annotation.Retryable
+    public void directRetryViolation() {
+        directRestTemplate.getForObject("https://api.example.com", String.class);
     }
 }

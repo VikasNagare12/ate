@@ -58,9 +58,9 @@ public interface AnalyzeCodeUseCase {
      * Analysis statistics.
      */
     record AnalysisStats(
-        int filesAnalyzed,
-        int typesAnalyzed,
-        int methodsAnalyzed,
+        long filesAnalyzed,
+        long typesAnalyzed,
+        long methodsAnalyzed,
         int rulesEvaluated,
         long totalDurationMs
     ) {}

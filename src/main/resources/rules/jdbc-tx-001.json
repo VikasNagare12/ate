@@ -4,7 +4,7 @@
   "description": "All database operations (JDBC, JPA) must be executed within an active transaction context (@Transactional) to ensure data consistency and atomicity.",
   "severity": "CRITICAL",
   "category": "TRANSACTION_SAFETY",
-  "isEnabled": false,
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": [],

@@ -18,16 +18,16 @@ public class ComplexDataFlowTestService {
     public void complexChainViolation() {
         // Source of query is a constant
         String sql = QueryConstants.UPDATE_USERS;
-        String sql1 = "UPDATE users1 SET status = 'ACTIVE'";
+        //String sql1 = "UPDATE users1 SET status = 'ACTIVE'";
 
         // Update 1: Passed to another class
         executor.executeSql(sql);
 
         // Update 2: Passed to another class
-        executor.executeSql(sql1);
+        executor.executeSql(sql);
     }
 
-    @Transactional
+    //@Transactional
     public void complexChainViolatio11n() {
         // Source of query is a constant
         String sql = QueryConstants.UPDATE_USERS;

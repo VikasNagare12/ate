@@ -1,5 +1,7 @@
 package com.vidnyan.ate.domain.rule;
 
+import com.vidnyan.ate.analyzer.SootUpEvaluationContext;
+
 /**
  * Interface for rule evaluators.
  * Each evaluator handles specific rule types.
@@ -14,7 +16,7 @@ public interface RuleEvaluator {
     /**
      * Evaluate the rule against the codebase.
      */
-    EvaluationResult evaluate(EvaluationContext context);
+    EvaluationResult evaluate(SootUpEvaluationContext context);
     
     /**
      * Get the evaluator name for logging.

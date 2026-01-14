@@ -4,7 +4,7 @@
   "description": "Circular dependencies between packages make the code harder to understand, test, and refactor. They can also cause issues with dependency injection and class loading.",
   "severity": "ERROR",
   "category": "CIRCULAR_DEPENDENCY",
-  "isEnabled": false,
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": [],

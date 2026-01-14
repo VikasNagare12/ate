@@ -4,7 +4,7 @@
   "description": "Multiple update/insert operations on the same table within a single transaction can indicate inefficient design or potential race conditions.",
   "severity": "WARN",
   "category": "PERFORMANCE",
-  "isEnabled": false,
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": ["org.springframework.transaction.annotation.Transactional"],

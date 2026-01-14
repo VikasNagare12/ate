@@ -1,13 +1,12 @@
 package com.vidnyan.ate.application.service;
 
+import com.vidnyan.ate.analyzer.SootUpAnalyzer;
+import com.vidnyan.ate.analyzer.SootUpEvaluationContext;
 import com.vidnyan.ate.application.port.in.AnalyzeCodeUseCase;
 import com.vidnyan.ate.application.port.out.AIAdvisor;
 import com.vidnyan.ate.application.port.out.RuleRepository;
-import com.vidnyan.ate.application.port.out.SourceCodeParser;
-import com.vidnyan.ate.domain.graph.CallGraph;
-import com.vidnyan.ate.domain.graph.DependencyGraph;
-import com.vidnyan.ate.domain.model.SourceModel;
 import com.vidnyan.ate.domain.rule.*;
+import sootup.core.views.View;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,7 +25,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AnalysisApplicationService implements AnalyzeCodeUseCase {
     
-    private final SourceCodeParser sourceCodeParser;
+    // Legacy parser removed
     private final RuleRepository ruleRepository;
     private final List<RuleEvaluator> ruleEvaluators;
     private final AIAdvisor aiAdvisor;
@@ -36,33 +35,18 @@ public class AnalysisApplicationService implements AnalyzeCodeUseCase {
         Instant startTime = Instant.now();
         log.info("Starting analysis of: {}", request.sourcePath());
         
-        // Step 1: Parse source code
-        log.info("Step 1: Parsing source code...");
-        SourceCodeParser.ParsingResult parsingResult = sourceCodeParser.parse(
-                request.sourcePath(),
-                new SourceCodeParser.ParsingOptions(
-                        request.includeTests(),
-                        true, // resolve symbols
-                        List.of()
-                )
-        );
+        // Step 1: Initialize SootUp Analyzer
+        log.info("Step 1: Initializing SootUp Analyzer...");
+        // Assuming compiled classes are same as source root for now (Maven structure)
+        // In real CLI usage we might need separate paths, but for this refactor we
+        // assume standard Maven layout
+        SootUpAnalyzer analyzer = new SootUpAnalyzer(request.sourcePath(), request.sourcePath());
+        View baseView = analyzer.analyze();
+
+        log.info("SootUp View created with {} classes", baseView.getClasses().size());
         
-        SourceModel sourceModel = parsingResult.sourceModel();
-        log.info("Parsed: {} types, {} methods", 
-                sourceModel.types().size(), 
-                sourceModel.methods().size());
-        
-        // Step 2: Build graphs
-        log.info("Step 2: Building graphs...");
-        CallGraph callGraph = CallGraph.build(sourceModel, parsingResult.callEdges());
-        DependencyGraph dependencyGraph = DependencyGraph.build(sourceModel);
-        
-        log.info("Built: {} call edges, {} packages", 
-                callGraph.stats().edgeCount(),
-                dependencyGraph.stats().packageCount());
-        
-        // Step 3: Load rules
-        log.info("Step 3: Loading rules...");
+        // Step 2: Load rules
+        log.info("Step 2: Loading rules...");
         List<RuleDefinition> rules = request.ruleIds().isEmpty() 
                 ? ruleRepository.findEnabled()
                 : request.ruleIds().stream()
@@ -73,15 +57,16 @@ public class AnalysisApplicationService implements AnalyzeCodeUseCase {
         
         log.info("Loaded {} rules", rules.size());
         
-        // Step 4: Evaluate rules
-        log.info("Step 4: Evaluating rules...");
+        // Step 3: Evaluate rules
+        log.info("Step 3: Evaluating rules...");
         List<EvaluationResult> ruleResults = new ArrayList<>();
         List<Violation> allViolations = new ArrayList<>();
         
         for (RuleDefinition rule : rules) {
                 log.info("  Processing rule: {}", rule.id());
-            EvaluationContext context = EvaluationContext.of(
-                    rule, sourceModel, callGraph, dependencyGraph);
+
+                // Create context with specific rule
+                SootUpEvaluationContext context = new SootUpEvaluationContext(baseView, rule);
             
             // Find matching evaluator
             RuleEvaluator evaluator = findEvaluator(rule);
@@ -106,17 +91,17 @@ public class AnalysisApplicationService implements AnalyzeCodeUseCase {
             }
         }
         
-        // Step 5: Get AI advice
-        log.info("Step 5: Getting AI advice...");
+        // Step 4: Get AI advice
+        log.info("Step 4: Getting AI advice...");
         AIAdvisor.AdviceResult advice = aiAdvisor.getAdvice(allViolations);
         log.info("AI Summary: {}", advice.summary());
         
         // Build result
         Duration totalDuration = Duration.between(startTime, Instant.now());
         AnalysisStats stats = new AnalysisStats(
-                parsingResult.stats().filesProcessed(),
-                sourceModel.types().size(),
-                sourceModel.methods().size(),
+                baseView.getClasses().size(), // parsingResult files -> classes
+                baseView.getClasses().size(), // types
+                baseView.getClasses().stream().mapToLong(c -> c.getMethods().size()).sum(), // methods
                 rules.size(),
                 totalDuration.toMillis()
         );

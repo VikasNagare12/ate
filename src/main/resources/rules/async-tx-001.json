@@ -4,7 +4,7 @@
   "description": "@Async methods run in a different thread, so the @Transactional context does NOT propagate. If you need transactions, start a new one in the async method.",
   "severity": "ERROR",
   "category": "ASYNC_SAFETY",
-  "isEnabled": false,
+  "isEnabled": true,
   "detection": {
     "entryPoints": {
       "annotations": [

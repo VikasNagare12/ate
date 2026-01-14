@@ -3,8 +3,6 @@ package com.vidnyan.ate.config;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.vidnyan.ate.adapter.out.parser.JavaParserAdapterV2;
-import com.vidnyan.ate.application.port.out.SourceCodeParser;
 import com.vidnyan.ate.domain.rule.RuleEvaluator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -29,16 +27,6 @@ public class AteConfiguration {
         return new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .configure(SerializationFeature.INDENT_OUTPUT, true);
-    }
-
-    /**
-     * Use the enhanced parser with SymbolSolver by default.
-     */
-    @Bean
-    @Primary
-    public SourceCodeParser sourceCodeParser() {
-        log.info("Using JavaParserAdapterV2 with SymbolSolver");
-        return new JavaParserAdapterV2();
     }
 
     /**
